@@ -1,0 +1,15 @@
+{
+  "name": "fellowshipring",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Monorepo for FellowshipRing: Arduino firmware, React web app, and Supabase backend.",
+  "workspaces": [
+    "web"
+  ],
+  "scripts": {
+    "web:dev": "npm --workspace web run dev",
+    "web:build": "npm --workspace web run build",
+    "web:lint": "npm --workspace web run lint"
+  },
+  "license": "MIT"
+}

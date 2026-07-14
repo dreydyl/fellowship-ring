@@ -1,0 +1,7 @@
+-- seed.sql
+--
+-- Local development seed data, applied by `supabase db reset` after
+-- migrations run. Use this to populate reference/test data only —
+-- never real user data.
+--
+-- TODO: Add seed rows once the schema (supabase/migrations/) is defined.

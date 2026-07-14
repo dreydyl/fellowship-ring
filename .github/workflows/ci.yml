@@ -1,0 +1,41 @@
+name: CI
+
+# Basic continuous integration workflow for the web application.
+# TODO: Add firmware build/lint job (pio run / pio check) once a target
+# board is configured in firmware/platformio.ini.
+# TODO: Add Supabase migration/lint checks once the schema is defined.
+# This workflow does NOT deploy anything.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  web:
+    name: Web - Lint & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build

@@ -1,0 +1,11 @@
+/* Global stylesheet.
+   TODO: Add design tokens / global resets as the design system is defined. */
+
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+}
