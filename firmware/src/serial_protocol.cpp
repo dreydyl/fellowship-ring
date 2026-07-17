@@ -10,9 +10,10 @@
 void serialProtocolInit() {
   // TODO: Choose an appropriate baud rate / transport and initialize it,
   //       e.g. Serial.begin(115200);
+  Serial.begin(9600);
 }
 
-void serialProtocolSendSample(const PpgSample& sample) {
+void serialProtocolSendSample(const PpgSample &sample) {
   // TODO: Implement the actual wire format (see docs/api.md), e.g.
   //       a length-prefixed binary frame or newline-delimited JSON/CSV.
   (void)sample;

@@ -15,6 +15,18 @@
 
 #include <stdint.h>
 
+class PPGSensor {
+public:
+    explicit PPGSensor(int pin);
+
+    bool begin();
+    int readRaw();
+
+private:
+    int sensorPin;
+};
+
+
 // Raw sample read from the PPG sensor.
 // TODO: Expand with additional channels (e.g., IR/Red) once the sensor
 // model is chosen.

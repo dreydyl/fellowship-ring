@@ -2,33 +2,30 @@
 //
 // Entry point for the FellowshipRing device firmware.
 //
-// This file only wires together the two independent modules:
-//   - ppg_sensor:      sensor initialization and raw data acquisition.
-//   - serial_protocol: framing/transmission of data to the host app.
-//
-// It intentionally contains no sensor-specific or protocol-specific
-// logic itself — see ppg_sensor.h/.cpp and serial_protocol.h/.cpp.
+// For now this just does a raw hardware smoke test: read the PPG
+// sensor's analog pin and print the raw value over serial. Once this
+// is confirmed working, serial_protocol.cpp will be implemented to
+// send structured (JSON) frames instead of plain integers.
 
 #include <Arduino.h>
 #include "ppg_sensor.h"
-#include "serial_protocol.h"
+
+PPGSensor sensor(A0);
+
+unsigned long lastSample = 0;
 
 void setup() {
-  serialProtocolInit();
+  Serial.begin(115200);
 
-  // TODO: Handle sensor initialization failure (e.g., blink an error
-  //       LED or retry) once ppgSensorInit() is implemented.
-  ppgSensorInit();
+  sensor.begin();
 }
 
 void loop() {
-  // TODO: Replace with a proper sampling loop once ppgSensorHasData()/
-  //       ppgSensorRead() are implemented (e.g., timed polling or
-  //       interrupt-driven acquisition).
-  if (ppgSensorHasData()) {
-    PpgSample sample{};
-    if (ppgSensorRead(sample)) {
-      serialProtocolSendSample(sample);
-    }
+  if (millis() - lastSample >= 10) {
+    lastSample = millis();
+
+    int raw = sensor.readRaw();
+
+    Serial.println(raw);
   }
 }

@@ -8,6 +8,20 @@
 
 #include "ppg_sensor.h"
 
+#include <Arduino.h>
+
+PPGSensor::PPGSensor(int pin)
+    : sensorPin(pin) {}
+
+bool PPGSensor::begin() {
+    pinMode(sensorPin, INPUT);
+    return true;
+}
+
+int PPGSensor::readRaw() {
+    return analogRead(sensorPin);
+}
+
 bool ppgSensorInit() {
   // TODO: Initialize the sensor communication bus (I2C/SPI).
   // TODO: Write sensor configuration registers (sample rate, LED
