@@ -7,6 +7,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { LoginPage } from '../features/auth/LoginPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { SettingsPage } from '../features/settings/SettingsPage';
+import { PpgPlotterPage } from '../features/ppg/PpgPlotterPage';
 
 const router = createBrowserRouter([
   {
@@ -21,7 +22,10 @@ const router = createBrowserRouter([
     path: '/settings',
     element: <SettingsPage />,
   },
-  // TODO: Add routes for the `ppg` feature (data visualization).
+  {
+    path: '/ppg',
+    element: <PpgPlotterPage />,
+  },
 ]);
 
 export function AppRouter() {
