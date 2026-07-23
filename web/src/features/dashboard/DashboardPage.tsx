@@ -1,6 +1,7 @@
 // Recovery dashboard: history of confessions + recent guidance.
 
 import { Link } from 'react-router-dom';
+import { Header } from '../../components/Header';
 import { useConfessionEntries } from '../confessions/hooks/useConfessionEntries';
 import { useRecentGuidance } from './hooks/useRecentGuidance';
 
@@ -11,7 +12,9 @@ export function DashboardPage() {
   const recentEntries = entries?.slice(0, 5) ?? [];
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
+    <div>
+      <Header />
+      <div className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
 
       <nav className="mt-4 flex gap-4 text-sm">
@@ -23,9 +26,6 @@ export function DashboardPage() {
         </Link>
         <Link to="/assessment" className="text-indigo-600 hover:underline">
           Self-Report Severity
-        </Link>
-        <Link to="/ppg" className="text-indigo-600 hover:underline">
-          Open PPG Plotter
         </Link>
       </nav>
 
@@ -71,6 +71,7 @@ export function DashboardPage() {
           ))}
         </ul>
       </section>
+      </div>
     </div>
   );
 }

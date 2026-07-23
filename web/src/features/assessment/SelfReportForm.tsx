@@ -1,9 +1,15 @@
 // Self-report form for addiction severity level.
+//
+// Pre-populated with the user's current profile (severity + struggle
+// note) so they can quickly confirm or adjust rather than starting
+// from scratch each time.
 
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
+import { useProfile } from './hooks/useProfile';
 import { useSubmitSelfReport } from './hooks/useSubmitSelfReport';
 
 const selfReportSchema = z.object({
@@ -15,16 +21,26 @@ type SelfReportValues = z.infer<typeof selfReportSchema>;
 
 export function SelfReportForm() {
   const navigate = useNavigate();
+  const { data: profile } = useProfile();
   const submitSelfReport = useSubmitSelfReport();
 
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<SelfReportValues>({
     resolver: zodResolver(selfReportSchema),
     defaultValues: { severityLevel: 3 },
   });
+
+  useEffect(() => {
+    if (!profile) return;
+    reset({
+      severityLevel: profile.current_severity_level ?? 3,
+      addictionType: profile.current_addiction_type ?? '',
+    });
+  }, [profile, reset]);
 
   async function onSubmit(values: SelfReportValues) {
     await submitSelfReport.mutateAsync({

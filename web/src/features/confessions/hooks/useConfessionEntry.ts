@@ -8,6 +8,7 @@ export interface ConfessionEntry {
   id: string;
   user_id: string;
   content: string;
+  urge_intensity: number;
   created_at: string;
   updated_at: string;
 }
@@ -19,7 +20,7 @@ export function useConfessionEntry(entryId: string | undefined) {
     queryFn: async (): Promise<ConfessionEntry> => {
       const { data, error } = await supabase
         .from('confession_entries')
-        .select('id, user_id, content, created_at, updated_at')
+        .select('id, user_id, content, urge_intensity, created_at, updated_at')
         .eq('id', entryId as string)
         .single();
 

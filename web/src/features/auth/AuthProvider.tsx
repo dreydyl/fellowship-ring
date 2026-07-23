@@ -27,8 +27,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!data.session) {
+        setSession(null);
+        setLoading(false);
+        return;
+      }
+
+      // getSession() only reads the locally cached session; it can be
+      // stale (e.g. after a local `supabase db reset` wipes auth.users
+      // while the browser still holds an old JWT). Validate against the
+      // server and drop the session if the user no longer exists.
+      const { error } = await supabase.auth.getUser();
+      if (error) {
+        await supabase.auth.signOut();
+        setSession(null);
+      } else {
+        setSession(data.session);
+      }
       setLoading(false);
     });
 

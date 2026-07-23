@@ -24,6 +24,7 @@ export type Database = {
           id: string;
           user_id: string;
           content: string;
+          urge_intensity: number;
           created_at: string;
           updated_at: string;
         };
@@ -31,6 +32,7 @@ export type Database = {
           id?: string;
           user_id: string;
           content: string;
+          urge_intensity?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -38,6 +40,7 @@ export type Database = {
           id?: string;
           user_id?: string;
           content?: string;
+          urge_intensity?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -154,6 +157,27 @@ export type Database = {
           confession_entry_id?: string;
           content?: string;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      profiles: {
+        Row: {
+          user_id: string;
+          current_severity_level: number | null;
+          current_addiction_type: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          current_severity_level?: number | null;
+          current_addiction_type?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          current_severity_level?: number | null;
+          current_addiction_type?: string | null;
+          updated_at?: string;
         };
         Relationships: [];
       };

@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
+import { Header } from '../../components/Header';
 import { useAuth } from './AuthProvider';
 
 const credentialsSchema = z.object({
@@ -54,7 +55,9 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+    <div>
+      <Header />
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-sm rounded-lg bg-white p-8 shadow">
         <h1 className="mb-6 text-2xl font-semibold text-gray-900">
           {mode === 'signIn' ? 'Log In' : 'Create Account'}
@@ -118,6 +121,7 @@ export function LoginPage() {
             ? "Don't have an account? Sign up"
             : 'Already have an account? Log in'}
         </button>
+      </div>
       </div>
     </div>
   );

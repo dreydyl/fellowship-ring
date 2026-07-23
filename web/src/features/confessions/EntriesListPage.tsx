@@ -1,13 +1,16 @@
 // History of confession entries, most recent first.
 
 import { Link } from 'react-router-dom';
+import { Header } from '../../components/Header';
 import { useConfessionEntries } from './hooks/useConfessionEntries';
 
 export function EntriesListPage() {
   const { data: entries, isLoading, isError } = useConfessionEntries();
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
+    <div>
+      <Header />
+      <div className="mx-auto max-w-2xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-gray-900">Your Entries</h1>
         <Link
@@ -40,10 +43,12 @@ export function EntriesListPage() {
                 {new Date(entry.created_at).toLocaleString()}
               </p>
               <p className="mt-1 line-clamp-2 text-gray-900">{entry.content}</p>
+              <p className="mt-1 text-xs text-gray-500">Urge intensity: {entry.urge_intensity}/5</p>
             </Link>
           </li>
         ))}
       </ul>
+      </div>
     </div>
   );
 }

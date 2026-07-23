@@ -29,10 +29,24 @@ export function useSubmitSelfReport() {
         .single();
 
       if (error) throw error;
+
+      // Keep the user's profile in sync with their latest self-report so
+      // it can be used to pre-populate this form next time and as the
+      // current-state lookup for AI-generated guidance/plans/prayers.
+      const { error: profileError } = await supabase.from('profiles').upsert({
+        user_id: user.id,
+        current_severity_level: severityLevel,
+        current_addiction_type: addictionType || null,
+        updated_at: new Date().toISOString(),
+      });
+
+      if (profileError) throw profileError;
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['addiction-assessments', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
     },
   });
 }

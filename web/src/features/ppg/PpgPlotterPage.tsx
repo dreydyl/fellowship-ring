@@ -6,6 +6,7 @@
 // avoid routing every sample through React state.
 
 import { useEffect, useRef } from 'react';
+import { Header } from '../../components/Header';
 import { usePpgSerialPlotter } from './hooks/usePpgSerialPlotter';
 
 export function PpgPlotterPage() {
@@ -116,6 +117,7 @@ export function PpgPlotterPage() {
   if (!isSupported) {
     return (
       <div>
+        <Header />
         <h1>PPG Plotter</h1>
         <p>
           Web Serial API is not supported in this browser. Please use a
@@ -127,6 +129,7 @@ export function PpgPlotterPage() {
 
   return (
     <div>
+      <Header />
       <h1>PPG Plotter</h1>
 
       <p>Status: {status}</p>

@@ -8,9 +8,17 @@ import { useCreateConfessionEntry } from './hooks/useCreateConfessionEntry';
 
 const entrySchema = z.object({
   content: z.string().min(1, 'Write something before saving.'),
+  urgeIntensitySlider: z.number().min(0).max(5),
 });
 
 type EntryFormValues = z.infer<typeof entrySchema>;
+
+// The slider itself moves continuously (no snapping) between 0 and 5.
+// The value that gets submitted and shown to the user is the ceiling of
+// the current slider position, clamped to the 1-5 range the field stores.
+function toUrgeIntensity(sliderValue: number): number {
+  return Math.min(5, Math.max(1, Math.ceil(sliderValue)));
+}
 
 export function NewEntryForm() {
   const navigate = useNavigate();
@@ -20,13 +28,20 @@ export function NewEntryForm() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<EntryFormValues>({
     resolver: zodResolver(entrySchema),
+    defaultValues: { urgeIntensitySlider: 1 },
   });
 
+  const urgeIntensity = toUrgeIntensity(watch('urgeIntensitySlider'));
+
   async function onSubmit(values: EntryFormValues) {
-    const entry = await createEntry.mutateAsync(values.content);
+    const entry = await createEntry.mutateAsync({
+      content: values.content,
+      urgeIntensity: toUrgeIntensity(values.urgeIntensitySlider),
+    });
     reset();
     navigate(`/entries/${entry.id}`);
   }
@@ -45,6 +60,24 @@ export function NewEntryForm() {
         />
         {errors.content && (
           <p className="mt-1 text-sm text-red-600">{errors.content.message}</p>
+        )}
+      </div>
+
+      <div>
+        <label htmlFor="urgeIntensitySlider" className="block text-sm font-medium text-gray-700">
+          Urge intensity: {urgeIntensity}/5
+        </label>
+        <input
+          id="urgeIntensitySlider"
+          type="range"
+          min={0}
+          max={5}
+          step="any"
+          className="mt-1 block w-full accent-indigo-600"
+          {...register('urgeIntensitySlider', { valueAsNumber: true })}
+        />
+        {errors.urgeIntensitySlider && (
+          <p className="mt-1 text-sm text-red-600">{errors.urgeIntensitySlider.message}</p>
         )}
       </div>
 
