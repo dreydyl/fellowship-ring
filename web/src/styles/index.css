@@ -6,10 +6,12 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 }
 
 body {
   margin: 0;
   font-family: system-ui, sans-serif;
+  background-color: #ffffff;
+  color: #111827;
 }

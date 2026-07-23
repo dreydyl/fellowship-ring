@@ -9,6 +9,10 @@ import { LoginPage } from '../features/auth/LoginPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { SettingsPage } from '../features/settings/SettingsPage';
 import { PpgPlotterPage } from '../features/ppg/PpgPlotterPage';
+import { NewEntryPage } from '../features/confessions/NewEntryPage';
+import { EntriesListPage } from '../features/confessions/EntriesListPage';
+import { EntryDetailPage } from '../features/confessions/EntryDetailPage';
+import { SelfReportPage } from '../features/assessment/SelfReportPage';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth();
@@ -50,6 +54,38 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <PpgPlotterPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/entries',
+    element: (
+      <ProtectedRoute>
+        <EntriesListPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/entries/new',
+    element: (
+      <ProtectedRoute>
+        <NewEntryPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/entries/:entryId',
+    element: (
+      <ProtectedRoute>
+        <EntryDetailPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/assessment',
+    element: (
+      <ProtectedRoute>
+        <SelfReportPage />
       </ProtectedRoute>
     ),
   },

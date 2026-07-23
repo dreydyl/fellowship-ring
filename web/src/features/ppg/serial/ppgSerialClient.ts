@@ -90,7 +90,9 @@ export class PpgSerialClient {
       throw new Error('Serial port is not readable.');
     }
 
-    const textStream = port.readable.pipeThrough(new TextDecoderStream());
+    const textStream = port.readable.pipeThrough(
+      new TextDecoderStream() as unknown as ReadableWritablePair<string, Uint8Array>,
+    );
     const reader = textStream.getReader();
     this.reader = reader;
 

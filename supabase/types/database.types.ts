@@ -41,6 +41,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [];
       };
       addiction_assessments: {
         Row: {
@@ -73,6 +74,7 @@ export type Database = {
           based_on_entry_id?: string | null;
           created_at?: string;
         };
+        Relationships: [];
       };
       guidance_records: {
         Row: {
@@ -99,6 +101,7 @@ export type Database = {
           content?: string;
           created_at?: string;
         };
+        Relationships: [];
       };
       reading_plans: {
         Row: {
@@ -128,6 +131,7 @@ export type Database = {
           plan_json?: Json;
           created_at?: string;
         };
+        Relationships: [];
       };
       guided_prayers: {
         Row: {
@@ -151,6 +155,7 @@ export type Database = {
           content?: string;
           created_at?: string;
         };
+        Relationships: [];
       };
     };
     Views: Record<string, never>;
