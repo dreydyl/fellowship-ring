@@ -165,18 +165,21 @@ export type Database = {
           user_id: string;
           current_severity_level: number | null;
           current_addiction_type: string | null;
+          gender: 'male' | 'female' | 'none' | null;
           updated_at: string;
         };
         Insert: {
           user_id: string;
           current_severity_level?: number | null;
           current_addiction_type?: string | null;
+          gender?: 'male' | 'female' | 'none' | null;
           updated_at?: string;
         };
         Update: {
           user_id?: string;
           current_severity_level?: number | null;
           current_addiction_type?: string | null;
+          gender?: 'male' | 'female' | 'none' | null;
           updated_at?: string;
         };
         Relationships: [];

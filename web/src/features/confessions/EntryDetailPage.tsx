@@ -11,12 +11,14 @@ import { useConfessionEntry } from './hooks/useConfessionEntry';
 import { useReadingPlanForEntry } from '../guidance/hooks/useReadingPlanForEntry';
 import { useGenerateReadingPlan } from '../guidance/hooks/useGenerateReadingPlan';
 import { ReadingPlanCard } from '../guidance/ReadingPlanCard';
+import { useDebugPrompts } from './hooks/useDebugPrompts';
 
 export function EntryDetailPage() {
   const { entryId } = useParams<{ entryId: string }>();
   const { data: entry, isLoading, isError } = useConfessionEntry(entryId);
   const { data: readingPlan, isLoading: isLoadingReadingPlan } = useReadingPlanForEntry(entryId);
   const generateReadingPlan = useGenerateReadingPlan();
+  const debugPrompts = useDebugPrompts();
 
   return (
     <div>
@@ -69,6 +71,38 @@ export function EntryDetailPage() {
             </p>
           )}
         </section>
+
+        {/* TEMPORARY: manual testing aid for the Gloo AI prompt builders.
+            Remove this section (and useDebugPrompts) once prompt tuning is done. */}
+        {entryId && (
+          <section className="mt-8 rounded-md border border-dashed border-amber-400 p-3">
+            <h2 className="text-sm font-semibold text-amber-700">
+              Debug: prompt builder outputs
+            </h2>
+            <button
+              type="button"
+              onClick={() => debugPrompts.mutate(entryId)}
+              disabled={debugPrompts.isPending}
+              className="mt-2 rounded-md bg-amber-600 px-3 py-1.5 text-sm text-white hover:bg-amber-700 disabled:opacity-50"
+            >
+              {debugPrompts.isPending ? 'Loading…' : 'Show prompt builder outputs'}
+            </button>
+
+            {debugPrompts.isError && (
+              <p className="mt-2 text-sm text-red-600">
+                {debugPrompts.error instanceof Error
+                  ? debugPrompts.error.message
+                  : 'Failed to load prompt builder outputs.'}
+              </p>
+            )}
+
+            {debugPrompts.isSuccess && (
+              <pre className="mt-2 max-h-[32rem] overflow-auto rounded bg-gray-900 p-3 text-xs text-gray-100">
+                {JSON.stringify(debugPrompts.data, null, 2)}
+              </pre>
+            )}
+          </section>
+        )}
       </div>
     </div>
   );

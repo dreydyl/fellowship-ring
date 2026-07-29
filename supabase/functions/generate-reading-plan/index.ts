@@ -85,14 +85,22 @@ Deno.serve(async (req: Request) => {
       messages: [{ role: 'user', content: contextLines.join('\n') }],
     });
 
-    let parsed: { title: string; description: string; reference: string };
+    let parsed: { title: string; description?: string; reference: string };
     try {
       parsed = JSON.parse(responseText);
     } catch {
-      throw new Error(`Gloo AI returned non-JSON response: ${responseText}`);
+      const match = responseText.match(/\{[\s\S]*\}/);
+      if (!match) {
+        throw new Error(`Gloo AI returned non-JSON response: ${responseText}`);
+      }
+      parsed = JSON.parse(match[0]);
     }
 
-    if (!parsed.title || !parsed.reference) {
+    const title = typeof parsed.title === 'string' ? parsed.title.trim() : '';
+    const reference = typeof parsed.reference === 'string' ? parsed.reference.trim() : '';
+    const description = typeof parsed.description === 'string' ? parsed.description : '';
+
+    if (!title || !reference) {
       throw new Error(`Gloo AI response missing required fields: ${responseText}`);
     }
 
@@ -101,9 +109,9 @@ Deno.serve(async (req: Request) => {
       .insert({
         user_id: userId,
         confession_entry_id: confessionEntryId,
-        title: parsed.title,
-        description: parsed.description ?? null,
-        plan_json: { version: 1, passages: [{ reference: parsed.reference }] },
+        title,
+        description: description || null,
+        plan_json: { version: 1, passages: [{ reference }] },
       })
       .select('id, title, description, plan_json, created_at')
       .single();

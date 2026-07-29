@@ -10,6 +10,7 @@
 
 const GLOO_TOKEN_URL = 'https://platform.ai.gloo.com/oauth2/token';
 const GLOO_RESPONSES_URL = 'https://platform.ai.gloo.com/ai/v1/responses';
+const GLOO_COMPLETIONS_URL = 'https://platform.ai.gloo.com/ai/v2/chat/completions';
 const DEFAULT_MODEL = 'gloo-openai-gpt-5-mini';
 
 // Access tokens are valid for 1 hour; cache within the function's warm
@@ -68,6 +69,7 @@ export interface CallGlooOptions {
   instructions?: string;
   messages: GlooMessage[];
   model?: string;
+  temperature?: number;
 }
 
 /**
@@ -78,6 +80,7 @@ export async function callGloo({
   instructions,
   messages,
   model = DEFAULT_MODEL,
+  temperature,
 }: CallGlooOptions): Promise<string> {
   const accessToken = await getAccessToken();
 
@@ -94,6 +97,7 @@ export async function callGloo({
         role: message.role,
         content: message.content,
       })),
+      ...(temperature !== undefined ? { temperature } : {}),
     }),
   });
 
@@ -114,4 +118,60 @@ export async function callGloo({
     .map((block: { text: string }) => block.text);
 
   return textBlocks.join('\n');
+}
+
+export interface CallGlooCompletionOptions {
+  instructions?: string;
+  messages: GlooMessage[];
+  model?: string;
+  maxTokens?: number;
+  temperature?: number;
+}
+
+/**
+ * Calls the Gloo AI Completions V2 API (`/ai/v2/chat/completions`) and
+ * returns the assistant's message content. Use this instead of
+ * `callGloo` when you need Gloo's governed path (guardrails, output
+ * moderation, values-alignment/`tradition`, intelligent routing).
+ */
+export async function callGlooCompletion({
+  instructions,
+  messages,
+  model = DEFAULT_MODEL,
+  maxTokens,
+  temperature,
+}: CallGlooCompletionOptions): Promise<string> {
+  const accessToken = await getAccessToken();
+
+  const chatMessages = [
+    ...(instructions ? [{ role: 'system', content: instructions }] : []),
+    ...messages.map((message) => ({ role: message.role, content: message.content })),
+  ];
+
+  const response = await fetch(GLOO_COMPLETIONS_URL, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: chatMessages,
+      ...(maxTokens ? { max_tokens: maxTokens } : {}),
+      ...(temperature !== undefined ? { temperature } : {}),
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Gloo AI Completions API error (${response.status}): ${errorBody}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content;
+  if (typeof content !== 'string') {
+    throw new Error('Gloo AI Completions response did not contain message content');
+  }
+
+  return content;
 }

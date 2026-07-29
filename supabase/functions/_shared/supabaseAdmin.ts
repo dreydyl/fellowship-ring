@@ -5,7 +5,7 @@
 // Reads SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY, which are
 // automatically provided to edge functions by the Supabase runtime.
 
-import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { createClient } from 'npm:@supabase/supabase-js@2.45.0';
 import type { Database } from '../../types/database.types.ts';
 
 export function createSupabaseAdminClient() {

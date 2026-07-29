@@ -1,22 +1,20 @@
-// Mutation hook that invokes the generate-reading-plan edge function
-// for a given confession entry.
+// TEMPORARY hook for manually inspecting Gloo AI prompt builder output.
+// Calls the debug-prompts edge function. Safe to delete once prompt
+// tuning/testing is done — not part of the product surface.
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabaseClient';
-import type { ReadingPlan } from './useReadingPlanForEntry';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 
-export function useGenerateReadingPlan() {
-  const queryClient = useQueryClient();
-
+export function useDebugPrompts() {
   return useMutation({
-    mutationFn: async (confessionEntryId: string): Promise<ReadingPlan> => {
+    mutationFn: async (confessionEntryId: string): Promise<unknown> => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
-      const response = await fetch(`${supabaseUrl}/functions/v1/generate-reading-plan`, {
+      const response = await fetch(`${supabaseUrl}/functions/v1/debug-prompts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -30,10 +28,7 @@ export function useGenerateReadingPlan() {
         throw new Error(data?.error || `Edge function failed (${response.status})`);
       }
 
-      return data as ReadingPlan;
-    },
-    onSuccess: (_data, confessionEntryId) => {
-      queryClient.invalidateQueries({ queryKey: ['reading-plan', confessionEntryId] });
+      return data;
     },
   });
 }

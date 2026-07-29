@@ -11,6 +11,7 @@ export interface Profile {
   user_id: string;
   current_severity_level: number | null;
   current_addiction_type: string | null;
+  gender: 'male' | 'female' | 'none' | null;
   updated_at: string;
 }
 
@@ -23,7 +24,7 @@ export function useProfile() {
     queryFn: async (): Promise<Profile | null> => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('user_id, current_severity_level, current_addiction_type, updated_at')
+        .select('user_id, current_severity_level, current_addiction_type, gender, updated_at')
         .eq('user_id', user!.id)
         .maybeSingle();
 
