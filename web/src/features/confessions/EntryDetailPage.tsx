@@ -18,11 +18,13 @@ import { useReadingPlanForEntry } from '../guidance/hooks/useReadingPlanForEntry
 import { useGenerateReadingPlan } from '../guidance/hooks/useGenerateReadingPlan';
 import { useGuidanceRecordForEntry } from '../guidance/hooks/useGuidanceRecordForEntry';
 import { useGuidedPrayerForEntry } from '../guidance/hooks/useGuidedPrayerForEntry';
+import { useAssessmentForEntry } from '../assessment/hooks/useAssessmentForEntry';
 import {
   useEntryGuidanceOrchestrator,
   type GuidanceStatus,
 } from '../guidance/hooks/useEntryGuidanceOrchestrator';
 import { ReadingPlanCard } from '../guidance/ReadingPlanCard';
+import { SeverityRecommendationCard } from '../guidance/SeverityRecommendationCard';
 import { useDebugPrompts } from './hooks/useDebugPrompts';
 
 function GuidanceCard({
@@ -60,6 +62,7 @@ export function EntryDetailPage() {
   const { data: readingPlan, isLoading: isLoadingReadingPlan } = useReadingPlanForEntry(entryId);
   const { data: guidanceRecord } = useGuidanceRecordForEntry(entryId);
   const { data: guidedPrayer } = useGuidedPrayerForEntry(entryId);
+  const { data: entryAssessment } = useAssessmentForEntry(entryId);
   const generateReadingPlan = useGenerateReadingPlan();
   const debugPrompts = useDebugPrompts();
 
@@ -166,11 +169,39 @@ export function EntryDetailPage() {
           )}
         </GuidanceCard>
 
-        <GuidanceCard title="Recommended Severity" status={guidance.severity.status} error={guidance.severity.error}>
-          {guidance.severity.data && (
-            <p className="mt-2 text-gray-900">{guidance.severity.data.recommendedSeverity}/5</p>
+        <section className="mt-6">
+          <h2 className="text-sm font-semibold text-gray-700">Recommended Severity</h2>
+
+          {!entryAssessment && guidance.severity.status === 'loading' && (
+            <p className="mt-2 text-sm text-gray-500">Generating…</p>
           )}
-        </GuidanceCard>
+
+          {!entryAssessment && guidance.severity.status === 'error' && (
+            <p className="mt-2 text-sm text-red-600">
+              {guidance.severity.error ?? 'Something went wrong.'}
+            </p>
+          )}
+
+          {entryAssessment && (
+            <p className="mt-2 text-sm text-gray-700">
+              Recorded severity level {entryAssessment.severity_level}/5
+              {entryAssessment.source === 'ai'
+                ? ' (accepted AI recommendation).'
+                : ' (your own report).'}
+            </p>
+          )}
+
+          {!entryAssessment && guidance.severity.status === 'success' && guidance.severity.data && entryId && (
+            <SeverityRecommendationCard
+              confessionEntryId={entryId}
+              recommendedSeverity={guidance.severity.data.recommendedSeverity}
+            />
+          )}
+
+          {!entryAssessment && guidance.severity.status === 'idle' && (
+            <p className="mt-2 text-sm text-gray-400">Not generated yet.</p>
+          )}
+        </section>
 
         <GuidanceCard title="Guided Prayer" status={guidedPrayerStatus} error={guidance.guidedPrayer.error}>
           {effectiveGuidedPrayer && (
