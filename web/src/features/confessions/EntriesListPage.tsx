@@ -1,14 +1,12 @@
-// History of confession entries, most recent first, plus the addiction
-// severity timeline (self-reported + AI-recommended). See docs/DESIGN.md
-// section 7 ("History Page").
+// History of confession entries, most recent first. See docs/DESIGN.md
+// section 7 ("History Page"). The addiction severity timeline previously
+// shown here now lives on the Account page (section 7, "Account Page").
 
 import type { MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Header } from '../../components/Header';
 import { UrgeDots } from '../../components/UrgeDots';
-import { severityColors, severityLabels } from '../../utils/severityColors';
 import { useConfessionEntries } from './hooks/useConfessionEntries';
-import { useSeverityHistory } from '../assessment/hooks/useSeverityHistory';
 
 function JournalIcon() {
   return (
@@ -19,23 +17,8 @@ function JournalIcon() {
   );
 }
 
-function TrendIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path
-        d="M1.5 12.5l4-4.5 3 2.5 5.5-6.5"
-        stroke="var(--sg-teal)"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 export function EntriesListPage() {
   const { data: entries, isLoading, isError } = useConfessionEntries();
-  const { data: severityHistory, isLoading: severityLoading } = useSeverityHistory();
 
   return (
     <div>
@@ -114,70 +97,6 @@ export function EntriesListPage() {
                 </div>
               </Link>
             ))}
-          </div>
-        </section>
-
-        <section className="mt-8">
-          <div className="mb-3 flex items-center gap-2">
-            <TrendIcon />
-            <span
-              className="font-display font-700 text-xs uppercase tracking-wider"
-              style={{ color: 'var(--sg-text-muted)' }}
-            >
-              Addiction Severity Timeline
-            </span>
-          </div>
-
-          <div className="rounded-3xl bg-white shadow-sm" style={{ border: '1px solid var(--sg-border)' }}>
-            {severityLoading && (
-              <p className="p-5 font-body text-sm" style={{ color: 'var(--sg-text-muted)' }}>
-                Loading…
-              </p>
-            )}
-            {!severityLoading && (severityHistory?.length ?? 0) === 0 && (
-              <p className="p-5 font-body text-sm" style={{ color: 'var(--sg-text-muted)' }}>
-                No severity records yet.
-              </p>
-            )}
-            {severityHistory?.map((record, i) => {
-              const isSelfReport = record.source === 'self_report';
-              const badgeColor = isSelfReport ? '#f0a500' : 'var(--sg-teal)';
-              const score = record.severity_level;
-              return (
-                <div
-                  key={record.id}
-                  className="flex items-center justify-between px-5 py-3.5"
-                  style={{
-                    borderTop: i === 0 ? 'none' : '1px solid var(--sg-border)',
-                  }}
-                >
-                  <div>
-                    <p className="font-display font-700 text-sm" style={{ color: 'var(--sg-text)' }}>
-                      {isSelfReport ? 'Self-Reported' : 'AI Recommended'}
-                    </p>
-                    <p className="font-body text-xs" style={{ color: 'var(--sg-text-muted)' }}>
-                      {new Date(record.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="rounded-full px-2 py-0.5 font-display font-700 text-xs"
-                      style={{ backgroundColor: `${badgeColor}18`, color: badgeColor }}
-                    >
-                      {isSelfReport ? 'Self-Reported' : 'AI'}
-                    </span>
-                    <div className="text-right">
-                      <p className="font-display font-800 text-sm" style={{ color: severityColors[score] }}>
-                        {score}
-                      </p>
-                      <p className="font-body text-xs" style={{ color: 'var(--sg-text-muted)' }}>
-                        {severityLabels[score]}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
           </div>
         </section>
       </div>

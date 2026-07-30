@@ -7,11 +7,10 @@ import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthProvider';
 import { LoginPage } from '../features/auth/LoginPage';
 import { HomePage } from '../features/dashboard/HomePage';
-import { SettingsPage } from '../features/settings/SettingsPage';
+import { AccountPage } from '../features/account/AccountPage';
 import { PpgPlotterPage } from '../features/ppg/PpgPlotterPage';
 import { EntriesListPage } from '../features/confessions/EntriesListPage';
 import { EntryDetailPage } from '../features/confessions/EntryDetailPage';
-import { SelfReportPage } from '../features/assessment/SelfReportPage';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth();
@@ -44,12 +43,7 @@ const router = createBrowserRouter([
     path: '/account',
     element: (
       <ProtectedRoute>
-        <div>
-          {/* Placeholder stacking of the pre-existing pages; replaced by the
-              real AccountPage in Prompt 7 (see docs/DESIGN.md section 7). */}
-          <SettingsPage />
-          <SelfReportPage />
-        </div>
+        <AccountPage />
       </ProtectedRoute>
     ),
   },

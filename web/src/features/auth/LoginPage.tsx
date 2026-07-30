@@ -1,5 +1,9 @@
 // Login/signup page using react-hook-form + zod validation,
-// wired up to Supabase auth via useAuth().
+// wired up to Supabase auth via useAuth(). Restyled to match the
+// Account page's card/token aesthetic so a signed-out user routed
+// here from the header's Account link feels like a continuous
+// "Account" destination. See docs/DESIGN.md section 7
+// ("Account Page" — LoginPage design note).
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -15,6 +19,20 @@ const credentialsSchema = z.object({
 });
 
 type Credentials = z.infer<typeof credentialsSchema>;
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-4 last:mb-0">
+      <span
+        className="block mb-1.5 text-xs font-display font-700 uppercase tracking-wider"
+        style={{ color: 'var(--sg-text-muted)' }}
+      >
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
 
 export function LoginPage() {
   const { signIn, signUp } = useAuth();
@@ -57,71 +75,74 @@ export function LoginPage() {
   return (
     <div>
       <Header />
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-sm rounded-lg bg-white p-8 shadow">
-        <h1 className="mb-6 text-2xl font-semibold text-gray-900">
+      <div className="mx-auto max-w-sm px-4 py-8">
+        <h1 className="mb-6 font-display font-900 text-2xl" style={{ color: 'var(--sg-text)' }}>
           {mode === 'signIn' ? 'Log In' : 'Create Account'}
         </h1>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              {...register('email')}
-            />
-            {errors.email && (
-              <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-            )}
-          </div>
+        <div
+          className="rounded-3xl p-5 shadow-sm"
+          style={{ backgroundColor: 'white', border: '1px solid var(--sg-border)' }}
+        >
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <Field label="Email">
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                className="w-full rounded-xl px-4 py-3 text-sm font-body outline-none"
+                style={{ backgroundColor: 'var(--sg-surface)', border: '1px solid var(--sg-border)', color: 'var(--sg-text)' }}
+                {...register('email')}
+              />
+              {errors.email && (
+                <p className="mt-1.5 text-sm" style={{ color: '#d94f4f' }}>{errors.email.message}</p>
+              )}
+            </Field>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              {...register('password')}
-            />
-            {errors.password && (
-              <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-            )}
-          </div>
+            <Field label="Password">
+              <input
+                id="password"
+                type="password"
+                autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
+                className="w-full rounded-xl px-4 py-3 text-sm font-body outline-none"
+                style={{ backgroundColor: 'var(--sg-surface)', border: '1px solid var(--sg-border)', color: 'var(--sg-text)' }}
+                {...register('password')}
+              />
+              {errors.password && (
+                <p className="mt-1.5 text-sm" style={{ color: '#d94f4f' }}>{errors.password.message}</p>
+              )}
+            </Field>
 
-          {formError && <p className="text-sm text-red-600">{formError}</p>}
-          {infoMessage && <p className="text-sm text-green-600">{infoMessage}</p>}
+            {formError && <p className="mt-3 text-sm" style={{ color: '#d94f4f' }}>{formError}</p>}
+            {infoMessage && (
+              <p className="mt-3 text-sm" style={{ color: 'var(--sg-green)' }}>{infoMessage}</p>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="mt-4 w-full rounded-xl px-4 py-3 text-sm font-display font-700 text-white disabled:opacity-50"
+              style={{ backgroundColor: 'var(--sg-green)' }}
+            >
+              {mode === 'signIn' ? 'Log In' : 'Sign Up'}
+            </button>
+          </form>
 
           <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-md bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 disabled:opacity-50"
+            type="button"
+            onClick={() => {
+              setMode(mode === 'signIn' ? 'signUp' : 'signIn');
+              setFormError(null);
+              setInfoMessage(null);
+            }}
+            className="mt-4 w-full text-center text-sm font-display font-700"
+            style={{ color: 'var(--sg-teal)' }}
           >
-            {mode === 'signIn' ? 'Log In' : 'Sign Up'}
+            {mode === 'signIn'
+              ? "Don't have an account? Sign up"
+              : 'Already have an account? Log in'}
           </button>
-        </form>
-
-        <button
-          type="button"
-          onClick={() => {
-            setMode(mode === 'signIn' ? 'signUp' : 'signIn');
-            setFormError(null);
-            setInfoMessage(null);
-          }}
-          className="mt-4 w-full text-center text-sm text-indigo-600 hover:underline"
-        >
-          {mode === 'signIn'
-            ? "Don't have an account? Sign up"
-            : 'Already have an account? Log in'}
-        </button>
-      </div>
+        </div>
       </div>
     </div>
   );

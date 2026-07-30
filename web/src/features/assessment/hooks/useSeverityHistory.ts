@@ -1,8 +1,8 @@
 // Query hook for fetching the current user's combined addiction-severity
 // history — both self-reported and AI-recommended (accepted) records —
-// ordered most-recent first. Powers the History page's severity timeline
-// and the Account page's SeverityMiniChart.
-// See docs/DESIGN.md section 7 ("History Page").
+// ordered most-recent first. Powers the Account page's severity timeline
+// and SeverityMiniChart.
+// See docs/DESIGN.md section 7 ("Account Page").
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabaseClient';

@@ -592,12 +592,13 @@ All shapes use `rx="2"` for slightly soft corners. The graduated opacity creates
 
 **File:** `web/src/features/account/AccountPage.tsx` (merges the former `SettingsPage` + `SelfReportPage`/`SelfReportForm` + profile display; the `LoginPage` is restyled to match and is what a signed-out user sees when the header's Account link routes them to `/login`)
 
-**Purpose:** Profile management. Four sections: Profile (email display), Security (change password), Addiction Severity (self-report + trend), Preferences (gender).
+**Purpose:** Profile management. Five sections: Profile (email display), Security (change password), Addiction Severity (self-report + trend), Addiction Severity Timeline (full history), Preferences (gender).
 
 **Data & state (real hooks, not a mock `onSelfReport` prop):**
 - Profile/email: `useAuth().user.email`.
 - Security/password: local form state (`currentPw`/`newPw`/`confirmPw`/`showPasswordForm`/`pwSaved`) as described below; the Save action calls `useAuth().updatePassword(newPw)`, which re-verifies `currentPw` via `supabase.auth.signInWithPassword` before calling `supabase.auth.updateUser({ password })`.
 - Addiction Severity: reuses `useProfile()` (pre-populates the selector) and `useSubmitSelfReport()` (inserts an `addiction_assessments` row with `source: 'self_report'`) in place of a bare `onSelfReport(score)` callback.
+- Addiction Severity Timeline: `useSeverityHistory()` (in `web/src/features/assessment/hooks/`, queries `addiction_assessments` for the current user ordered by `created_at desc`) — the same query instance backs both the `SeverityMiniChart` (most recent 8, reversed to chronological order) and the full timeline list below it. A `SeverityHistoryRecord`'s `source` (`'self_report'` → "Self-Reported", `'ai'` → "AI Recommended") and `severity_level` drive the row label and score.
 - Preferences (gender): reuses `useUpdateGender()`.
 
 **Password flow:**
@@ -614,21 +615,29 @@ All shapes use `rx="2"` for slightly soft corners. The graduated opacity creates
 - Unselected state: `var(--sg-border)` border, `var(--sg-text-muted)` text
 - On save: calls `useSubmitSelfReport().mutate(selfSeverity)`, which inserts an `addiction_assessments` row with `source: 'self_report'`
 
+**Addiction Severity Timeline section (separate `Section`, below Addiction Severity):**
+- Uses the same `TrendIcon` as the mini chart heading
+- Lists every `addiction_assessments` row from `useSeverityHistory()`, most recent first, each row: `flex items-center justify-between py-3.5` with a top divider (`1px solid var(--sg-border)`) between rows
+- Left: bold type label ("Self-Reported" or "AI Recommended", derived from the row's `source`) + date in muted text
+- Right: type badge (amber tinted for `self_report`, teal tinted for `ai`) + score number in severity color + severity label below
+- Empty state: "No severity records yet." in muted text
+
 **SeverityMiniChart (embedded below the severity selector):**
 
 **File:** `web/src/features/account/AccountPage.tsx` (inline)
 
-**Purpose:** A compact SVG sparkline showing the severity trend across the last 8 records, displayed directly beneath the Addiction Severity self-report controls so the user can see how their new rating fits historical trend. Fed by the same `useSeverityHistory` hook used by the History page's severity timeline (see below) — pull the most recent 8 records from it rather than maintaining a separate query.
+**Purpose:** A compact SVG sparkline showing the severity trend across the last 8 records, displayed directly beneath the Addiction Severity self-report controls so the user can see how their new rating fits historical trend. Fed by the same `useSeverityHistory` hook used by the Addiction Severity Timeline section below — pull the most recent 8 records from it rather than maintaining a separate query.
 
 **Implementation approach:**
-- Uses a raw `<svg viewBox="0 0 100 100" preserveAspectRatio="none">` so it scales to fill its container
-- `vectorEffect="non-scaling-stroke"` on strokes and circles ensures line widths don't scale with the SVG
+- Uses a raw `<svg viewBox="0 0 100 100" preserveAspectRatio="none">` (absolutely positioned to fill an `h-16` container) for the grid lines and trend `<polyline>` only — it scales to fill its container width without distorting the line's shape
+- `vectorEffect="non-scaling-stroke"` on the grid lines and polyline stroke keeps line widths constant regardless of the non-uniform scale
 - Y axis: severity 5 maps to y=0, severity 0 maps to y=100 → `y = ((max - score) / max) * 100`
 - X axis: evenly distributed; `x = i * (100 / (count - 1))`
 - Grid lines: 4 horizontal lines at `y = 20, 40, 60, 80` with `rgba(43,191,176,0.08)` stroke
 - Trend line: `<polyline>` with `stroke="var(--sg-teal)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"`
-- Dots: `<circle r="4" fill="white">` with stroke color depending on record source — teal for `source: 'ai'`, amber for `source: 'self_report'`
-- Container height: `h-16` (64px); uses `position: relative` with `<svg>` absolutely positioned inside
+- **Dots are rendered as absolutely-positioned HTML `<span>` elements (not SVG `<circle>`s)**, sized `h-2 w-2 rounded-full` and positioned with `left: {x}%; top: {y}%; transform: translate(-50%, -50%)`. This avoids the distortion that occurs when SVG circles are scaled non-uniformly: the chart container is much wider than it is tall (`h-16` against a full-width card), and `preserveAspectRatio="none"` stretches the `0 0 100 100` viewBox to fit — `vector-effect: non-scaling-stroke` only protects stroke *width*, not a circle's radius, so plain `<circle r="4">` elements render as ellipses. HTML dots have a fixed, independent aspect ratio and stay perfectly round regardless of the chart's width.
+- Dot border color depends on record source — teal for `source: 'ai'`, amber for `source: 'self_report'`; fill stays white
+- Container height: `h-16` (64px); uses `position: relative` with the `<svg>` and dots both absolutely positioned inside
 
 ---
 
@@ -638,7 +647,6 @@ All shapes use `rx="2"` for slightly soft corners. The graduated opacity creates
 
 **Data (real hooks, not props):**
 - Entries: `useConfessionEntries()`.
-- Severity timeline: `useSeverityHistory()` (new hook in `web/src/features/assessment/hooks/`, queries `addiction_assessments` for the current user ordered by `created_at desc`) — replaces the mock `severityHistory: SeverityRecord[]` prop; a `SeverityRecord`'s `type` maps to the row's `source` (`'self_report'` → "Self-Reported", `'ai'` → "AI Recommended") and `score` maps to `severity_level`.
 - Navigation: `<Link to={`/entries/${entry.id}`}>` instead of a `navigate` prop.
 
 **Layout structure:**
@@ -649,12 +657,6 @@ All shapes use `rx="2"` for slightly soft corners. The graduated opacity creates
   [Section: Confession Entries]
     [JournalIcon + "Confession Entries" label]
     <div> [entry cards, flex-col gap-3] </div>
-
-  [Section: Addiction Severity Timeline]
-    [TrendIcon + "Addiction Severity Timeline" label]
-    <div [rounded-3xl white card]>
-      [divider list of addiction_assessments rows]
-    </div>
 </div>
 ```
 
@@ -665,10 +667,7 @@ All shapes use `rx="2"` for slightly soft corners. The graduated opacity creates
 - Body: `line-clamp-2` truncation of confession text
 - Footer: "Urge: N/5" on left, "View guidance →" teal link on right
 
-**Severity timeline list:**
-- Each row: `flex items-center justify-between px-5 py-3.5`
-- Left: bold type label ("Self-Reported" or "AI Recommended", derived from the row's `source`) + date in muted text
-- Right: type badge (amber tinted for `self_report`, teal tinted for `ai`) + score number in severity color + severity label below
+> **Note:** The Addiction Severity Timeline previously shown on this page has moved to the [Account Page](#account-page), directly below the Addiction Severity self-report controls, alongside the `SeverityMiniChart`.
 
 ---
 
@@ -884,7 +883,7 @@ interface AddictionAssessment {
 }
 ```
 
-This is the real backing table for what the design doc calls a "SeverityRecord": `source: 'self_report'` rows come from the Account page's severity selector (`useSubmitSelfReport`); `source: 'ai'` rows are created only after the user explicitly accepts an AI recommendation on the Entry View page (`SeverityRecommendationCard`) — the recommendation itself (`recommend-severity` edge function) is not persisted until accepted. `useSeverityHistory` queries this table (ordered by `created_at desc`) to feed both the History page's timeline and the Account page's `SeverityMiniChart`. `severityColors`/`severityLabels` (section 2) index by `severity_level`.
+This is the real backing table for what the design doc calls a "SeverityRecord": `source: 'self_report'` rows come from the Account page's severity selector (`useSubmitSelfReport`); `source: 'ai'` rows are created only after the user explicitly accepts an AI recommendation on the Entry View page (`SeverityRecommendationCard`) — the recommendation itself (`recommend-severity` edge function) is not persisted until accepted. `useSeverityHistory` queries this table (ordered by `created_at desc`) to feed both the Account page's `SeverityMiniChart` and its Addiction Severity Timeline list. `severityColors`/`severityLabels` (section 2) index by `severity_level`.
 
 ### guidance_records, reading_plans, guided_prayers
 
