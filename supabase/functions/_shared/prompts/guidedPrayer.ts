@@ -13,6 +13,7 @@ import type { ConfessionContext } from '../confessionContext.ts';
 import type { GlooMessage } from '../glooClient.ts';
 import { getRelationalTerms } from './pronouns.ts';
 import { formatEntryHistory, formatSelfReportedSeverity } from './formatting.ts';
+import { PERSONA_DESCRIPTION } from './persona.ts';
 
 export interface GlooPromptRequest {
   instructions: string;
@@ -22,18 +23,14 @@ export interface GlooPromptRequest {
 
 const TEMPERATURE_HIGH = 0.9;
 
-// Same persona placeholder decision as motivational.ts — fixed for now.
-const PERSONA = 'compassionate discipler';
-
 function tierInstructions(desperationLevel: number): string {
   if (desperationLevel <= 4) {
-    return "Lead them in a joyful prayer modeled from the Lord's Prayer. Keep it to 7 sentences.";
+    return "Lead them in a joyful prayer modeled from the Lord's Prayer inspired by Psalm 32. Keep it to 7 sentences.";
   }
   if (desperationLevel <= 7) {
-    return "Lead them in a peaceful prayer modeled from the Lord's Prayer. Keep it to 2 paragraphs and " +
-      '14 sentences in length.';
+    return "Lead them in a peaceful prayer modeled from the Lord's Prayer inspired by Psalm 143. Keep it to 2 paragraphs and 14 sentences in length.";
   }
-  return "Lead them in a zealous prayer modeled from the Lord's Prayer. Keep it to 3 paragraphs in length.";
+  return "Lead them in a zealous prayer modeled from Psalm 51 with the heart of Lord's Prayer. Keep it to 3 paragraphs in length.";
 }
 
 export function buildGuidedPrayerPrompt(
@@ -42,11 +39,12 @@ export function buildGuidedPrayerPrompt(
 ): GlooPromptRequest {
   const { relation, possessive } = getRelationalTerms(ctx.gender);
 
-  const instructions = `You are a ${PERSONA} who understands the struggle of habitual sin and the \
-thorns of flesh. You are assigned to help a ${relation} in Christ humbly come to the Father in repentance \
-based on ${possessive} confession just now.
+  const instructions = `${PERSONA_DESCRIPTION}
 
-${tierInstructions(desperationLevel)} Respond with plain text only — no JSON, no markdown, no headings.`;
+You understand the struggle of habitual sin and the thorns of flesh, and are helping a ${relation} in \
+Christ humbly come to the Father in repentance based on ${possessive} confession just now.
+
+${tierInstructions(desperationLevel)} Let it be in first person as if the user is praying. Respond with plain text only — no JSON, no markdown, no headings.`;
 
   const input = `Their confession just now: "${ctx.entry.content}"
 
@@ -54,9 +52,7 @@ These were their last 3 confessions:
 ${formatEntryHistory(ctx.last3Entries)}
 
 Their self-reported addiction severity:
-${formatSelfReportedSeverity(ctx.selfReportedSeverity)}
-
-Their current desperation level (1-10): ${desperationLevel}`;
+${formatSelfReportedSeverity(ctx.selfReportedSeverity)}`;
 
   return {
     instructions,

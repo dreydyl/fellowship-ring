@@ -15,20 +15,7 @@
 
 import { createSupabaseAdminClient, getUserIdFromRequest } from '../_shared/supabaseAdmin.ts';
 import { buildConfessionContext } from '../_shared/confessionContext.ts';
-import { callGloo } from '../_shared/glooClient.ts';
-import { buildReadingPlanPrompt } from '../_shared/prompts/readingPlan.ts';
-
-interface ReadingPlanPassage {
-  number: number;
-  reference: string;
-  summary: string;
-}
-
-interface ReadingPlanResponse {
-  title: string;
-  narrative: string;
-  passages: ReadingPlanPassage[];
-}
+import { runGenerateReadingPlan } from '../_shared/tasks/generateReadingPlan.ts';
 
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
@@ -59,53 +46,8 @@ Deno.serve(async (req: Request) => {
       throw error;
     }
 
-    const responseText = await callGloo(buildReadingPlanPrompt(ctx));
-
-    let parsed: ReadingPlanResponse;
-    try {
-      parsed = JSON.parse(responseText);
-    } catch {
-      const match = responseText.match(/\{[\s\S]*\}/);
-      if (!match) {
-        throw new Error(`Gloo AI returned non-JSON response: ${responseText}`);
-      }
-      parsed = JSON.parse(match[0]);
-    }
-
-    const title = typeof parsed.title === 'string' ? parsed.title.trim() : '';
-    const narrative = typeof parsed.narrative === 'string' ? parsed.narrative.trim() : '';
-    const passages: ReadingPlanPassage[] = Array.isArray(parsed.passages)
-      ? parsed.passages
-          .filter(
-            (passage): passage is ReadingPlanPassage =>
-              typeof passage?.reference === 'string' && passage.reference.trim().length > 0,
-          )
-          .map((passage, index) => ({
-            number: typeof passage.number === 'number' ? passage.number : index + 1,
-            reference: passage.reference.trim(),
-            summary: typeof passage.summary === 'string' ? passage.summary.trim() : '',
-          }))
-      : [];
-
-    if (!title || !passages.length) {
-      throw new Error(`Gloo AI response missing required fields: ${responseText}`);
-    }
-
     const supabase = createSupabaseAdminClient();
-
-    const { data: plan, error: insertError } = await supabase
-      .from('reading_plans')
-      .insert({
-        user_id: userId,
-        confession_entry_id: confessionEntryId,
-        title,
-        description: narrative || null,
-        plan_json: { version: 2, passages },
-      })
-      .select('id, title, description, plan_json, created_at')
-      .single();
-
-    if (insertError) throw insertError;
+    const plan = await runGenerateReadingPlan(supabase, userId, confessionEntryId, ctx);
 
     return new Response(JSON.stringify(plan), {
       status: 200,

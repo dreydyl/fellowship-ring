@@ -1,24 +1,98 @@
 // Detail page for revisiting a single confession entry.
 //
-// TODO(Phase 2/3): render generated prayer / guidance once those
-// edge functions and hooks exist. Reading plan generation is
-// currently manually triggered; Phase 2 step 5 will wire it into the
-// entry-save flow automatically.
+// When navigated to right after saving a new entry (justCreated router
+// state), this page automatically kicks off the entry-guidance
+// orchestrator (generate-entry-guidance), which runs assess-desperation,
+// generate-reading-plan, generate-motivational and recommend-severity
+// concurrently, then generate-guided-prayer once desperation resolves.
+// Each card below reflects that task's own loading/success/error state
+// independently. Revisiting an older entry instead falls back to
+// reading whatever was already persisted (plus a manual "Generate
+// reading plan" button, kept for entries created before this existed).
 
-import { Link, useParams } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { Header } from '../../components/Header';
 import { useConfessionEntry } from './hooks/useConfessionEntry';
 import { useReadingPlanForEntry } from '../guidance/hooks/useReadingPlanForEntry';
 import { useGenerateReadingPlan } from '../guidance/hooks/useGenerateReadingPlan';
+import { useGuidanceRecordForEntry } from '../guidance/hooks/useGuidanceRecordForEntry';
+import { useGuidedPrayerForEntry } from '../guidance/hooks/useGuidedPrayerForEntry';
+import {
+  useEntryGuidanceOrchestrator,
+  type GuidanceStatus,
+} from '../guidance/hooks/useEntryGuidanceOrchestrator';
 import { ReadingPlanCard } from '../guidance/ReadingPlanCard';
 import { useDebugPrompts } from './hooks/useDebugPrompts';
 
+function GuidanceCard({
+  title,
+  status,
+  error,
+  children,
+}: {
+  title: string;
+  status: GuidanceStatus;
+  error?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <section className="mt-6">
+      <h2 className="text-sm font-semibold text-gray-700">{title}</h2>
+      {status === 'loading' && <p className="mt-2 text-sm text-gray-500">Generating…</p>}
+      {status === 'error' && (
+        <p className="mt-2 text-sm text-red-600">{error ?? 'Something went wrong.'}</p>
+      )}
+      {status === 'success' && children}
+      {status === 'idle' && !children && (
+        <p className="mt-2 text-sm text-gray-400">Not generated yet.</p>
+      )}
+    </section>
+  );
+}
+
 export function EntryDetailPage() {
   const { entryId } = useParams<{ entryId: string }>();
+  const location = useLocation();
+  const justCreated = Boolean((location.state as { justCreated?: boolean } | null)?.justCreated);
+
   const { data: entry, isLoading, isError } = useConfessionEntry(entryId);
   const { data: readingPlan, isLoading: isLoadingReadingPlan } = useReadingPlanForEntry(entryId);
+  const { data: guidanceRecord } = useGuidanceRecordForEntry(entryId);
+  const { data: guidedPrayer } = useGuidedPrayerForEntry(entryId);
   const generateReadingPlan = useGenerateReadingPlan();
   const debugPrompts = useDebugPrompts();
+
+  const { state: guidance, trigger: triggerGuidance } = useEntryGuidanceOrchestrator();
+  const hasTriggeredRef = useRef(false);
+
+  useEffect(() => {
+    if (justCreated && entryId && !hasTriggeredRef.current) {
+      hasTriggeredRef.current = true;
+      triggerGuidance(entryId);
+    }
+  }, [justCreated, entryId, triggerGuidance]);
+
+  // Reading plan: prefer whatever's already persisted (covers both a
+  // completed orchestrator run and a plan generated on an earlier
+  // visit); fall back to the orchestrator's own in-flight state so the
+  // card reflects progress before the query cache refetches.
+  const readingPlanStatus: GuidanceStatus = readingPlan
+    ? 'success'
+    : guidance.readingPlan.status !== 'idle'
+      ? guidance.readingPlan.status
+      : isLoadingReadingPlan
+        ? 'loading'
+        : 'idle';
+  const effectiveReadingPlan = readingPlan ?? guidance.readingPlan.data;
+
+  const motivationalStatus: GuidanceStatus = guidanceRecord
+    ? 'success'
+    : guidance.motivational.status;
+  const effectiveMotivational = guidanceRecord ?? guidance.motivational.data;
+
+  const guidedPrayerStatus: GuidanceStatus = guidedPrayer ? 'success' : guidance.guidedPrayer.status;
+  const effectiveGuidedPrayer = guidedPrayer ?? guidance.guidedPrayer.data;
 
   return (
     <div>
@@ -44,15 +118,23 @@ export function EntryDetailPage() {
         <section className="mt-6">
           <h2 className="text-sm font-semibold text-gray-700">Reading Plan</h2>
 
-          {isLoadingReadingPlan && <p className="mt-2 text-sm text-gray-500">Loading…</p>}
+          {readingPlanStatus === 'loading' && (
+            <p className="mt-2 text-sm text-gray-500">Generating…</p>
+          )}
 
-          {!isLoadingReadingPlan && readingPlan && (
+          {readingPlanStatus === 'error' && (
+            <p className="mt-2 text-sm text-red-600">
+              {guidance.readingPlan.error ?? 'Failed to generate reading plan.'}
+            </p>
+          )}
+
+          {readingPlanStatus === 'success' && effectiveReadingPlan && (
             <div className="mt-2">
-              <ReadingPlanCard plan={readingPlan} />
+              <ReadingPlanCard plan={effectiveReadingPlan} />
             </div>
           )}
 
-          {!isLoadingReadingPlan && !readingPlan && entryId && (
+          {readingPlanStatus === 'idle' && entryId && (
             <button
               type="button"
               onClick={() => generateReadingPlan.mutate(entryId)}
@@ -71,6 +153,30 @@ export function EntryDetailPage() {
             </p>
           )}
         </section>
+
+        <GuidanceCard title="Motivational Word" status={motivationalStatus} error={guidance.motivational.error}>
+          {effectiveMotivational && (
+            <p className="mt-2 whitespace-pre-wrap text-gray-900">{effectiveMotivational.content}</p>
+          )}
+        </GuidanceCard>
+
+        <GuidanceCard title="Desperation Level" status={guidance.desperation.status} error={guidance.desperation.error}>
+          {guidance.desperation.data && (
+            <p className="mt-2 text-gray-900">{guidance.desperation.data.desperationLevel}/10</p>
+          )}
+        </GuidanceCard>
+
+        <GuidanceCard title="Recommended Severity" status={guidance.severity.status} error={guidance.severity.error}>
+          {guidance.severity.data && (
+            <p className="mt-2 text-gray-900">{guidance.severity.data.recommendedSeverity}/5</p>
+          )}
+        </GuidanceCard>
+
+        <GuidanceCard title="Guided Prayer" status={guidedPrayerStatus} error={guidance.guidedPrayer.error}>
+          {effectiveGuidedPrayer && (
+            <p className="mt-2 whitespace-pre-wrap text-gray-900">{effectiveGuidedPrayer.content}</p>
+          )}
+        </GuidanceCard>
 
         {/* TEMPORARY: manual testing aid for the Gloo AI prompt builders.
             Remove this section (and useDebugPrompts) once prompt tuning is done. */}

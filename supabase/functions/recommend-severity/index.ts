@@ -12,9 +12,7 @@
 
 import { getUserIdFromRequest } from '../_shared/supabaseAdmin.ts';
 import { buildConfessionContext } from '../_shared/confessionContext.ts';
-import { callGloo } from '../_shared/glooClient.ts';
-import { buildSeverityRecommendationPrompt } from '../_shared/prompts/severityRecommendation.ts';
-import { parseNumericResponse } from '../_shared/parseNumericResponse.ts';
+import { runRecommendSeverity } from '../_shared/tasks/recommendSeverity.ts';
 
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
@@ -45,8 +43,7 @@ Deno.serve(async (req: Request) => {
       throw error;
     }
 
-    const responseText = await callGloo(buildSeverityRecommendationPrompt(ctx));
-    const recommendedSeverity = parseNumericResponse(responseText, 1, 5);
+    const recommendedSeverity = await runRecommendSeverity(ctx);
 
     return new Response(JSON.stringify({ recommendedSeverity }), {
       status: 200,

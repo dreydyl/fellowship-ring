@@ -10,8 +10,7 @@
 
 import { createSupabaseAdminClient, getUserIdFromRequest } from '../_shared/supabaseAdmin.ts';
 import { buildConfessionContext } from '../_shared/confessionContext.ts';
-import { callGlooCompletion } from '../_shared/glooClient.ts';
-import { buildGuidedPrayerPrompt } from '../_shared/prompts/guidedPrayer.ts';
+import { runGenerateGuidedPrayer } from '../_shared/tasks/generateGuidedPrayer.ts';
 
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
@@ -54,23 +53,14 @@ Deno.serve(async (req: Request) => {
       throw error;
     }
 
-    const content = (
-      await callGlooCompletion(buildGuidedPrayerPrompt(ctx, desperationLevel))
-    ).trim();
-
     const supabase = createSupabaseAdminClient();
-    const { data: guidedPrayer, error: insertError } = await supabase
-      .from('guided_prayers')
-      .insert({
-        user_id: userId,
-        confession_entry_id: confessionEntryId,
-        content,
-        desperation_level: desperationLevel,
-      })
-      .select('id, confession_entry_id, content, desperation_level, created_at')
-      .single();
-
-    if (insertError) throw insertError;
+    const guidedPrayer = await runGenerateGuidedPrayer(
+      supabase,
+      userId,
+      confessionEntryId,
+      ctx,
+      desperationLevel,
+    );
 
     return new Response(JSON.stringify(guidedPrayer), {
       status: 200,

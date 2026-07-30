@@ -11,9 +11,7 @@
 
 import { getUserIdFromRequest } from '../_shared/supabaseAdmin.ts';
 import { buildConfessionContext } from '../_shared/confessionContext.ts';
-import { callGloo } from '../_shared/glooClient.ts';
-import { buildDesperationPrompt } from '../_shared/prompts/desperation.ts';
-import { parseNumericResponse } from '../_shared/parseNumericResponse.ts';
+import { runAssessDesperation } from '../_shared/tasks/assessDesperation.ts';
 
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
@@ -44,8 +42,7 @@ Deno.serve(async (req: Request) => {
       throw error;
     }
 
-    const responseText = await callGloo(buildDesperationPrompt(ctx));
-    const desperationLevel = parseNumericResponse(responseText, 1, 10);
+    const desperationLevel = await runAssessDesperation(ctx);
 
     return new Response(JSON.stringify({ desperationLevel }), {
       status: 200,

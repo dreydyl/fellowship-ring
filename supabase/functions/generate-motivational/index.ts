@@ -17,8 +17,7 @@
 
 import { createSupabaseAdminClient, getUserIdFromRequest } from '../_shared/supabaseAdmin.ts';
 import { buildConfessionContext } from '../_shared/confessionContext.ts';
-import { callGlooCompletion } from '../_shared/glooClient.ts';
-import { buildMotivationalPrompt } from '../_shared/prompts/motivational.ts';
+import { runGenerateMotivational } from '../_shared/tasks/generateMotivational.ts';
 
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
@@ -49,20 +48,8 @@ Deno.serve(async (req: Request) => {
       throw error;
     }
 
-    const content = (await callGlooCompletion(buildMotivationalPrompt(ctx))).trim();
-
     const supabase = createSupabaseAdminClient();
-    const { data: guidanceRecord, error: insertError } = await supabase
-      .from('guidance_records')
-      .insert({
-        user_id: userId,
-        confession_entry_id: confessionEntryId,
-        content,
-      })
-      .select('id, confession_entry_id, content, created_at')
-      .single();
-
-    if (insertError) throw insertError;
+    const guidanceRecord = await runGenerateMotivational(supabase, userId, confessionEntryId, ctx);
 
     return new Response(JSON.stringify(guidanceRecord), {
       status: 200,

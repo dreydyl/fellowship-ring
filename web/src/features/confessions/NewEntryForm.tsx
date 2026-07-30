@@ -43,7 +43,11 @@ export function NewEntryForm() {
       urgeIntensity: toUrgeIntensity(values.urgeIntensitySlider),
     });
     reset();
-    navigate(`/entries/${entry.id}`);
+    // justCreated tells EntryDetailPage to kick off the entry-guidance
+    // orchestrator (assess-desperation, generate-reading-plan,
+    // generate-motivational, recommend-severity, generate-guided-prayer)
+    // as soon as it mounts, instead of just showing manual buttons.
+    navigate(`/entries/${entry.id}`, { state: { justCreated: true } });
   }
 
   return (
