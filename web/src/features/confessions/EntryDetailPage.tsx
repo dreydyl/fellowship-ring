@@ -16,11 +16,13 @@ import { Header } from '../../components/Header';
 import { UrgeDots } from '../../components/UrgeDots';
 import { severityColors, severityLabels } from '../../utils/severityColors';
 import { useConfessionEntry } from './hooks/useConfessionEntry';
+import { useConfessionEntries } from './hooks/useConfessionEntries';
 import { useReadingPlanForEntry } from '../guidance/hooks/useReadingPlanForEntry';
 import { useGenerateReadingPlan } from '../guidance/hooks/useGenerateReadingPlan';
 import { useGuidanceRecordForEntry } from '../guidance/hooks/useGuidanceRecordForEntry';
 import { useGuidedPrayerForEntry } from '../guidance/hooks/useGuidedPrayerForEntry';
 import { useAssessmentForEntry } from '../assessment/hooks/useAssessmentForEntry';
+import { usePendingSeverityRecommendation } from '../guidance/hooks/usePendingSeverityRecommendation';
 import {
   useEntryGuidanceOrchestrator,
   type GuidanceStatus,
@@ -200,10 +202,12 @@ export function EntryDetailPage() {
   const justCreated = Boolean((location.state as { justCreated?: boolean } | null)?.justCreated);
 
   const { data: entry, isLoading, isError } = useConfessionEntry(entryId);
+  const { data: entries } = useConfessionEntries();
   const { data: readingPlan, isLoading: isLoadingReadingPlan } = useReadingPlanForEntry(entryId);
   const { data: guidanceRecord } = useGuidanceRecordForEntry(entryId);
   const { data: guidedPrayer } = useGuidedPrayerForEntry(entryId);
   const { data: entryAssessment } = useAssessmentForEntry(entryId);
+  const pendingSeverityRecommendation = usePendingSeverityRecommendation(entryId);
   const generateReadingPlan = useGenerateReadingPlan();
   const debugPrompts = useDebugPrompts();
 
@@ -238,6 +242,13 @@ export function EntryDetailPage() {
 
   const guidedPrayerStatus: GuidanceStatus = guidedPrayer ? 'success' : guidance.guidedPrayer.status;
   const effectiveGuidedPrayer = guidedPrayer ?? guidance.guidedPrayer.data;
+
+  // The severity banner reflects the user's *current* standing, not a
+  // per-entry history (that lives in the Account page's severity
+  // timeline) — so it's only shown while viewing the most recent entry.
+  // A freshly-created entry (justCreated) counts as most recent even
+  // before the entries list has refetched to include it.
+  const isMostRecentEntry = Boolean(entryId) && (justCreated || entries?.[0]?.id === entryId);
 
   return (
     <div>
@@ -294,44 +305,46 @@ export function EntryDetailPage() {
           <div className="flex-1 h-px" style={{ backgroundColor: 'var(--sg-border)' }} />
         </div>
 
-        {entryAssessment ? (
-          <SeverityBanner
-            score={entryAssessment.severity_level}
-            sourceLabel={
-              entryAssessment.source === 'ai' ? 'Accepted AI recommendation' : 'Your own report'
-            }
-          />
-        ) : guidance.severity.status === 'success' && guidance.severity.data && entryId ? (
-          <SeverityBanner
-            score={guidance.severity.data.recommendedSeverity}
-            sourceLabel="AI-recommended — not yet recorded"
-          >
-            <div className="mt-3">
-              <SeverityRecommendationCard
-                confessionEntryId={entryId}
-                recommendedSeverity={guidance.severity.data.recommendedSeverity}
-              />
-            </div>
-          </SeverityBanner>
-        ) : (
-          <SeverityBannerShell>
-            {guidance.severity.status === 'loading' && (
-              <p className="text-sm" style={{ color: 'var(--sg-text-muted)' }}>
-                Assessing severity…
-              </p>
-            )}
-            {guidance.severity.status === 'error' && (
-              <p className="text-sm" style={{ color: '#d94f4f' }}>
-                {guidance.severity.error ?? 'Something went wrong.'}
-              </p>
-            )}
-            {guidance.severity.status === 'idle' && (
-              <p className="text-sm" style={{ color: 'var(--sg-text-muted)' }}>
-                Severity assessment not generated yet.
-              </p>
-            )}
-          </SeverityBannerShell>
-        )}
+        {isMostRecentEntry &&
+          (entryAssessment ? (
+            <SeverityBanner
+              score={entryAssessment.severity_level}
+              sourceLabel={
+                entryAssessment.source === 'ai' ? 'Accepted AI recommendation' : 'Your own report'
+              }
+            />
+          ) : pendingSeverityRecommendation.data && entryId ? (
+            <SeverityBanner
+              score={pendingSeverityRecommendation.data.recommendedSeverity}
+              sourceLabel="AI-recommended — not yet recorded"
+            >
+              <div className="mt-3">
+                <SeverityRecommendationCard
+                  confessionEntryId={entryId}
+                  recommendedSeverity={pendingSeverityRecommendation.data.recommendedSeverity}
+                  onDismiss={pendingSeverityRecommendation.clear}
+                />
+              </div>
+            </SeverityBanner>
+          ) : (
+            <SeverityBannerShell>
+              {guidance.severity.status === 'loading' && (
+                <p className="text-sm" style={{ color: 'var(--sg-text-muted)' }}>
+                  Assessing severity…
+                </p>
+              )}
+              {guidance.severity.status === 'error' && (
+                <p className="text-sm" style={{ color: '#d94f4f' }}>
+                  {guidance.severity.error ?? 'Something went wrong.'}
+                </p>
+              )}
+              {guidance.severity.status === 'idle' && (
+                <p className="text-sm" style={{ color: 'var(--sg-text-muted)' }}>
+                  Severity assessment not generated yet.
+                </p>
+              )}
+            </SeverityBannerShell>
+          ))}
 
         <GuidanceCard
           icon={<SparkleIcon color="var(--sg-teal)" />}

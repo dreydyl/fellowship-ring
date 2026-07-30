@@ -21,7 +21,8 @@ export function buildSeverityRecommendationPrompt(ctx: ConfessionContext): GlooP
 
   const instructions = `You are a Christian therapist who understands the struggle of habitual sin and \
 the thorns of flesh. You are assigned to help a ${relation} in Christ recenter and regulate ${possessive} \
-physiology and spirit after ${possessive} confession just now.
+physiology and spirit after ${possessive} confession just now. Consider how frequently they confess and \
+how strong their urges have been.
 
 On a scale of 1-5, how severe is their addiction? Respond with ONLY the bare number \
 (e.g. "3") — no words, no punctuation, no explanation.`;

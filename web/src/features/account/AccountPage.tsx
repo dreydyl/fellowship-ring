@@ -12,6 +12,7 @@ import { useProfile } from '../assessment/hooks/useProfile';
 import { useSubmitSelfReport } from '../assessment/hooks/useSubmitSelfReport';
 import { useSeverityHistory } from '../assessment/hooks/useSeverityHistory';
 import { useUpdateGender, type Gender } from '../settings/hooks/useUpdateGender';
+import { SeverityMiniChart } from './SeverityMiniChart';
 
 function UserIcon() {
   return (
@@ -129,69 +130,6 @@ function PasswordInput({
   );
 }
 
-// Compact SVG sparkline showing the severity trend across the last 8
-// records, fed by useSeverityHistory. See docs/DESIGN.md section 7
-// ("Account Page" → "SeverityMiniChart").
-function SeverityMiniChart({
-  records,
-}: {
-  records: { source: 'self_report' | 'ai'; severity_level: number }[];
-}) {
-  if (records.length < 2) return null;
-
-  const max = 5;
-  const points = records.map((record, i) => ({
-    x: i * (100 / (records.length - 1)),
-    y: ((max - record.severity_level) / max) * 100,
-    source: record.source,
-  }));
-
-  return (
-    <div className="h-16 relative">
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-        {[20, 40, 60, 80].map((y) => (
-          <line
-            key={y}
-            x1="0"
-            y1={y}
-            x2="100"
-            y2={y}
-            stroke="rgba(43,191,176,0.08)"
-            vectorEffect="non-scaling-stroke"
-          />
-        ))}
-        <polyline
-          points={points.map((p) => `${p.x},${p.y}`).join(' ')}
-          fill="none"
-          stroke="var(--sg-teal)"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          vectorEffect="non-scaling-stroke"
-        />
-      </svg>
-      {/* Dots are rendered as absolutely-positioned HTML elements, not SVG
-          circles, because the chart's non-uniform (wide, short) aspect
-          ratio combined with preserveAspectRatio="none" stretches SVG
-          circles into ellipses even with vector-effect applied (that
-          attribute only protects stroke width, not radius). */}
-      {points.map((p, i) => (
-        <span
-          key={i}
-          className="absolute h-2 w-2 rounded-full"
-          style={{
-            left: `${p.x}%`,
-            top: `${p.y}%`,
-            transform: 'translate(-50%, -50%)',
-            backgroundColor: 'white',
-            border: `2px solid ${p.source === 'ai' ? 'var(--sg-teal)' : '#f0a500'}`,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
 export function AccountPage() {
   const { user, updatePassword } = useAuth();
 
@@ -239,8 +177,7 @@ export function AccountPage() {
   const submitSelfReport = useSubmitSelfReport();
   const { data: severityHistory } = useSeverityHistory();
   const [selfSeverity, setSelfSeverity] = useState(profile?.current_severity_level ?? 3);
-
-  const recentSeverity = (severityHistory ?? []).slice(0, 8).reverse();
+  const [showSeverityHistory, setShowSeverityHistory] = useState(false);
 
   // Preferences section
   const updateGender = useUpdateGender();
@@ -338,7 +275,7 @@ export function AccountPage() {
           )}
         </Section>
 
-        <Section icon={<TrendIcon />} title="Addiction Severity">
+        <Section icon={<TrendIcon />} title="Addiction Severity Report">
           <div className="flex flex-wrap gap-2 mb-4">
             {[1, 2, 3, 4, 5].map((n) => {
               const selected = selfSeverity === n;
@@ -367,26 +304,28 @@ export function AccountPage() {
             })}
           </div>
 
-          <button
-            type="button"
-            onClick={() =>
-              submitSelfReport.mutate({
-                severityLevel: selfSeverity,
-                addictionType: profile?.current_addiction_type ?? undefined,
-              })
-            }
-            disabled={submitSelfReport.isPending}
-            className="rounded-xl px-4 py-2 text-sm font-display font-700 text-white disabled:opacity-50 transition-colors duration-200"
-            style={{ backgroundColor: 'var(--sg-green)' }}
-            onMouseEnter={(e) => {
-              if (!submitSelfReport.isPending) e.currentTarget.style.backgroundColor = 'var(--sg-green-dark)';
-            }}
-            onMouseLeave={(e) => {
-              if (!submitSelfReport.isPending) e.currentTarget.style.backgroundColor = 'var(--sg-green)';
-            }}
-          >
-            {submitSelfReport.isPending ? 'Saving…' : 'Save'}
-          </button>
+          {selfSeverity !== profile?.current_severity_level && (
+            <button
+              type="button"
+              onClick={() =>
+                submitSelfReport.mutate({
+                  severityLevel: selfSeverity,
+                  addictionType: profile?.current_addiction_type ?? undefined,
+                })
+              }
+              disabled={submitSelfReport.isPending}
+              className="rounded-xl px-4 py-2 text-sm font-display font-700 text-white disabled:opacity-50 transition-colors duration-200"
+              style={{ backgroundColor: 'var(--sg-green)' }}
+              onMouseEnter={(e) => {
+                if (!submitSelfReport.isPending) e.currentTarget.style.backgroundColor = 'var(--sg-green-dark)';
+              }}
+              onMouseLeave={(e) => {
+                if (!submitSelfReport.isPending) e.currentTarget.style.backgroundColor = 'var(--sg-green)';
+              }}
+            >
+              {submitSelfReport.isPending ? 'Saving…' : 'Save'}
+            </button>
+          )}
 
           {submitSelfReport.isError && (
             <p className="mt-2 text-sm" style={{ color: '#d94f4f' }}>
@@ -401,7 +340,7 @@ export function AccountPage() {
             </p>
           )}
 
-          {recentSeverity.length >= 2 && (
+          {(severityHistory?.length ?? 0) >= 2 && (
             <div className="mt-4">
               <span
                 className="block mb-1.5 text-xs font-display font-700 uppercase tracking-wider"
@@ -409,57 +348,72 @@ export function AccountPage() {
               >
                 Trend
               </span>
-              <SeverityMiniChart records={recentSeverity} />
+              <SeverityMiniChart records={severityHistory ?? []} />
             </div>
           )}
-        </Section>
 
-        <Section icon={<TrendIcon />} title="Addiction Severity Timeline">
-          {(severityHistory?.length ?? 0) === 0 && (
-            <p className="font-body text-sm" style={{ color: 'var(--sg-text-muted)' }}>
-              No severity records yet.
-            </p>
-          )}
-          <div className="flex flex-col">
-            {severityHistory?.map((record, i) => {
-              const isSelfReport = record.source === 'self_report';
-              const badgeColor = isSelfReport ? '#f0a500' : 'var(--sg-teal)';
-              const score = record.severity_level;
-              return (
-                <div
-                  key={record.id}
-                  className="flex items-center justify-between py-3.5"
-                  style={{
-                    borderTop: i === 0 ? 'none' : '1px solid var(--sg-border)',
-                  }}
-                >
-                  <div>
-                    <p className="font-display font-700 text-sm" style={{ color: 'var(--sg-text)' }}>
-                      {isSelfReport ? 'Self-Reported' : 'AI Recommended'}
-                    </p>
-                    <p className="font-body text-xs" style={{ color: 'var(--sg-text-muted)' }}>
-                      {new Date(record.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="rounded-full px-2 py-0.5 font-display font-700 text-xs"
-                      style={{ backgroundColor: `${badgeColor}18`, color: badgeColor }}
-                    >
-                      {isSelfReport ? 'Self-Reported' : 'AI'}
-                    </span>
-                    <div className="text-right">
-                      <p className="font-display font-800 text-sm" style={{ color: severityColors[score] }}>
-                        {score}
-                      </p>
-                      <p className="font-body text-xs" style={{ color: 'var(--sg-text-muted)' }}>
-                        {severityLabels[score]}
-                      </p>
-                    </div>
-                  </div>
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => setShowSeverityHistory((prev) => !prev)}
+              className="text-xs font-display font-700 uppercase tracking-wider transition-colors duration-150"
+              style={{ color: 'var(--sg-text-muted)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--sg-text)')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--sg-text-muted)')}
+            >
+              {showSeverityHistory ? '▾' : '▸'} Severity History
+            </button>
+
+            {showSeverityHistory && (
+              <div className="mt-2">
+                {(severityHistory?.length ?? 0) === 0 && (
+                  <p className="font-body text-sm" style={{ color: 'var(--sg-text-muted)' }}>
+                    No severity records yet.
+                  </p>
+                )}
+                <div className="flex flex-col">
+                  {severityHistory?.map((record, i) => {
+                    const isSelfReport = record.source === 'self_report';
+                    const badgeColor = isSelfReport ? '#f0a500' : 'var(--sg-teal)';
+                    const score = record.severity_level;
+                    return (
+                      <div
+                        key={record.id}
+                        className="flex items-center justify-between py-3.5"
+                        style={{
+                          borderTop: i === 0 ? 'none' : '1px solid var(--sg-border)',
+                        }}
+                      >
+                        <div>
+                          <p className="font-display font-700 text-sm" style={{ color: 'var(--sg-text)' }}>
+                            {isSelfReport ? 'Self-Reported' : 'AI Recommended'}
+                          </p>
+                          <p className="font-body text-xs" style={{ color: 'var(--sg-text-muted)' }}>
+                            {new Date(record.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="rounded-full px-2 py-0.5 font-display font-700 text-xs"
+                            style={{ backgroundColor: `${badgeColor}18`, color: badgeColor }}
+                          >
+                            {isSelfReport ? 'Self-Reported' : 'AI'}
+                          </span>
+                          <div className="text-right">
+                            <p className="font-display font-800 text-sm" style={{ color: severityColors[score] }}>
+                              {score}
+                            </p>
+                            <p className="font-body text-xs" style={{ color: 'var(--sg-text-muted)' }}>
+                              {severityLabels[score]}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              </div>
+            )}
           </div>
         </Section>
 

@@ -17,6 +17,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import type { ReadingPlan } from './useReadingPlanForEntry';
 import type { GuidanceRecord } from './useGuidanceRecordForEntry';
 import type { GuidedPrayer } from './useGuidedPrayerForEntry';
+import { pendingSeverityRecommendationKey } from './usePendingSeverityRecommendation';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 
@@ -91,6 +92,15 @@ export function useEntryGuidanceOrchestrator() {
             queryClient.invalidateQueries({ queryKey: ['guidance-record', confessionEntryId] });
           } else if (event.target === 'guidedPrayer') {
             queryClient.invalidateQueries({ queryKey: ['guided-prayer', confessionEntryId] });
+          } else if (event.target === 'severity') {
+            // Stash the not-yet-recorded recommendation in the query
+            // cache (see usePendingSeverityRecommendation) so it keeps
+            // showing if the user navigates away and back before
+            // accepting/dismissing it, without persisting it server-side.
+            queryClient.setQueryData(
+              pendingSeverityRecommendationKey(confessionEntryId),
+              event.data,
+            );
           }
         }
       };
