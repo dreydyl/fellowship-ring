@@ -6,10 +6,9 @@ import type { ReactNode } from 'react';
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 import { useAuth } from '../features/auth/AuthProvider';
 import { LoginPage } from '../features/auth/LoginPage';
-import { DashboardPage } from '../features/dashboard/DashboardPage';
+import { HomePage } from '../features/dashboard/HomePage';
 import { SettingsPage } from '../features/settings/SettingsPage';
 import { PpgPlotterPage } from '../features/ppg/PpgPlotterPage';
-import { NewEntryPage } from '../features/confessions/NewEntryPage';
 import { EntriesListPage } from '../features/confessions/EntriesListPage';
 import { EntryDetailPage } from '../features/confessions/EntryDetailPage';
 import { SelfReportPage } from '../features/assessment/SelfReportPage';
@@ -33,7 +32,7 @@ const router = createBrowserRouter([
     path: '/',
     element: (
       <ProtectedRoute>
-        <DashboardPage />
+        <HomePage />
       </ProtectedRoute>
     ),
   },
@@ -42,12 +41,21 @@ const router = createBrowserRouter([
     element: <LoginPage />,
   },
   {
-    path: '/settings',
+    path: '/account',
     element: (
       <ProtectedRoute>
-        <SettingsPage />
+        <div>
+          {/* Placeholder stacking of the pre-existing pages; replaced by the
+              real AccountPage in Prompt 7 (see docs/DESIGN.md section 7). */}
+          <SettingsPage />
+          <SelfReportPage />
+        </div>
       </ProtectedRoute>
     ),
+  },
+  {
+    path: '/settings',
+    element: <Navigate to="/account" replace />,
   },
   {
     path: '/ppg',
@@ -67,11 +75,7 @@ const router = createBrowserRouter([
   },
   {
     path: '/entries/new',
-    element: (
-      <ProtectedRoute>
-        <NewEntryPage />
-      </ProtectedRoute>
-    ),
+    element: <Navigate to="/" replace />,
   },
   {
     path: '/entries/:entryId',
@@ -83,11 +87,7 @@ const router = createBrowserRouter([
   },
   {
     path: '/assessment',
-    element: (
-      <ProtectedRoute>
-        <SelfReportPage />
-      </ProtectedRoute>
-    ),
+    element: <Navigate to="/account" replace />,
   },
 ]);
 

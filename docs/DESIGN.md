@@ -13,7 +13,6 @@ A faith-based confession and recovery accountability web app. Mobile-first. Warm
 5. [Application Shell & Routing](#5-application-shell--routing)
 6. [Component Library](#6-component-library)
    - [Header](#header)
-   - [AboutDropdown](#aboutdropdown)
    - [GuidanceCard](#guidancecard)
    - [Section / Field (Account)](#section--field-account)
    - [UrgeDots](#urgedots)
@@ -34,53 +33,58 @@ A faith-based confession and recovery accountability web app. Mobile-first. Warm
 
 ### Toolchain
 
+This is the **real FellowshipRing app** (`web/`), not a standalone prototype — it already has react-router-dom routing, Supabase auth/data, React Query, react-hook-form + zod, and a YouVersion Bible SDK integration wired in. This design system is layered on top of that existing app; it does not replace its architecture.
+
 | Tool | Version | Purpose |
 |------|---------|---------|
-| Node.js | 22.x (via `.mise.toml`) | Runtime |
-| pnpm | 9.x | Package manager |
-| Vite | 8.x | Build tool & dev server |
-| TypeScript | 5.7 | Type safety |
+| Node.js | 22.x | Runtime |
+| npm | (repo convention — root `package.json` uses npm workspaces) | Package manager |
+| Vite | 5.x → migrating to v4-compatible Tailwind tooling | Build tool & dev server |
+| TypeScript | 5.5+ | Type safety |
 | React | 19 | UI framework |
-| Tailwind CSS | v4 | Utility styling |
+| Tailwind CSS | v4 (migrated from v3) | Utility styling |
+| react-router-dom | v6 | Routing (kept — see [Application Shell & Routing](#5-application-shell--routing)) |
+| @tanstack/react-query | v5 | Server state / caching |
+| Supabase | — | Auth, Postgres (RLS), edge functions |
+
+> **Note:** Earlier drafts of this document assumed `pnpm`. The repo's root `package.json` declares an npm workspace (`"workspaces": ["web"]`) and `scripts/build.sh`/`scripts/dev.sh` both call `npm`. Use `npm` for all commands below.
 
 ### Installing the baseline
 
 ```bash
 # Install all dependencies (already in package.json)
-pnpm install
+npm install --workspace web
 ```
 
 ### Adding future libraries
 
-When adding new runtime libraries, install with pnpm and import from the package root:
+When adding new runtime libraries, install with npm and import from the package root:
 
 ```bash
 # Example: adding recharts for a more elaborate severity chart
-pnpm add recharts
+npm install --workspace web recharts
 
 # Example: adding framer-motion for richer page transitions
-pnpm add framer-motion
+npm install --workspace web framer-motion
 
 # Example: adding a date formatting library
-pnpm add date-fns
+npm install --workspace web date-fns
 ```
 
 Before using any unfamiliar package, confirm the import path from its `package.json` `exports` field or its TypeScript types. Do not guess import paths.
 
 ### Dev server
 
-The Vite dev server runs on the port stored in `$PORT` (default 8443). Hot module replacement is active — changes to any `src/` file reflect immediately without a full page reload.
-
 ```bash
-pnpm dev   # start dev server
-pnpm build # production build
+npm --workspace web run dev   # start dev server
+npm --workspace web run build # production build (tsc -b && vite build)
 ```
 
 ---
 
 ## 2. Design Tokens & Theme
 
-All color tokens are defined as CSS custom properties on `:root` in `src/index.css`. Use these everywhere — never scatter raw hex values across components.
+All color tokens are defined as CSS custom properties on `:root` in `web/src/styles/index.css`. Use these everywhere — never scatter raw hex values across components.
 
 ```css
 :root {
@@ -166,7 +170,7 @@ backgroundColor: 'rgba(43,191,176,0.06)'
 
 ### Font families
 
-Two Google Fonts are used. They are imported at the top of `src/index.css` (before any other CSS):
+Two Google Fonts are used. They are imported at the top of `web/src/styles/index.css` (before any other CSS):
 
 ```css
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap');
@@ -184,7 +188,7 @@ Two Google Fonts are used. They are imported at the top of `src/index.css` (befo
 
 ### Applying fonts in JSX
 
-The two font stacks are wired as Tailwind utility classes via `src/index.css`:
+The two font stacks are wired as Tailwind utility classes via `web/src/styles/index.css`:
 
 ```css
 .font-display { font-family: var(--font-display); }
@@ -221,7 +225,7 @@ Apply them in JSX:
 
 ## 4. Global CSS & Tailwind Configuration
 
-### `src/index.css` — full structure
+### `web/src/styles/index.css` — full structure
 
 ```css
 /* 1. Google Font imports — MUST come first */
@@ -298,64 +302,45 @@ input[type='range'] {
 
 ### Tailwind v4 notes
 
-This project uses **Tailwind CSS v4** (not v3). Key differences:
-- No `tailwind.config.ts` is needed; configuration lives in `src/index.css` via `@theme inline { … }`.
-- Import via Vite plugin (`@tailwindcss/vite`) configured in `vite.config.ts` — no PostCSS setup required.
+The app has been migrated from Tailwind v3 (config-file based) to **Tailwind CSS v4**:
+- `web/tailwind.config.js`, `web/postcss.config.js`, and the `autoprefixer` devDependency have been removed.
+- `@tailwindcss/vite` is added as a Vite plugin in `web/vite.config.ts` — no PostCSS setup required.
+- All configuration (tokens, fonts) lives in `web/src/styles/index.css` via `@theme inline { … }`.
 - Custom color tokens added to `@theme inline` become available as Tailwind utility classes (e.g. `--color-teal-500` → `bg-teal-500`).
 
 ---
 
 ## 5. Application Shell & Routing
 
-The app uses **client-side state routing** — no react-router. Page navigation is managed by a single `page` state variable in `App.tsx`. This keeps the bundle small and avoids hash/history complexity for an app that doesn't need deep-linking yet.
+The app keeps its existing **react-router-dom (v6)** routing — there is no custom `page`-state router. This design system is a visual reskin layered on top of the real route tree, auth guard, and data layer; it does not replace them.
 
-### State shape in `App.tsx`
+### Route map (`web/src/app/router.tsx`)
 
-```ts
-// Page identifiers
-type Page = 'home' | 'account' | 'history' | 'entry'
+| Route | Page component | Notes |
+|-------|----------------|-------|
+| `/` | `HomePage` (merged Dashboard + New Entry) | Protected. Hero + confession form + recent-entries preview. |
+| `/entries` | `EntriesListPage` | Protected. History page. |
+| `/entries/:entryId` | `EntryDetailPage` | Protected. Entry View page. |
+| `/account` | `AccountPage` (merged Settings + Assessment self-report + profile) | Protected. |
+| `/login` | `LoginPage` | Public. Rendered when a signed-out user is redirected from a protected route or clicks the header's Account link while signed out. |
+| `/settings`, `/assessment`, `/entries/new` | — | Redirect to `/account` / `/`, kept only for backwards compatibility with any existing links. |
+| `/ppg` | `PpgPlotterPage` | Protected. Out of scope for this design pass — left unstyled. |
 
-// A single confession entry
-interface Entry {
-  id: string
-  date: string          // ISO 8601
-  confession: string
-  urgeIntensity: number // 1–5
-  aiGuidance?: {
-    encouragement: string
-    readingPlan: string[]  // e.g. ['Psalm 34:18', 'Romans 8:38-39']
-    prayer: string
-    severityLevel: number  // 1–5
-    severityLabel: string  // e.g. 'Moderate'
-  }
-}
+`ProtectedRoute` (in `router.tsx`) already checks `useAuth().session` and redirects to `/login` — that guard is unchanged.
 
-// A single severity snapshot
-interface SeverityRecord {
-  date: string           // YYYY-MM-DD
-  score: number          // 1–5
-  type: 'self-reported' | 'recommended'
-}
-```
+### Data model note
 
-### Navigation function
+There is no client-only `Entry`/`SeverityRecord`/`aiGuidance` mock shape — all data is persisted in Supabase and fetched via React Query hooks. See [Data Model](#9-data-model) for the real schema and edge-function contracts.
 
-```ts
-const navigate = (p: Page, entryId?: string) => {
-  if (entryId) setSelectedEntryId(entryId)
-  setPage(p)
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-}
-```
+### Navigation pattern
 
-Always pass `navigate` down as a prop. Never import `navigate` from a global store — keep data flow explicit so each page can be independently reasoned about.
+Use react-router's `<Link>`/`useNavigate()`/`useLocation()` directly in components — there is no shared `navigate(page, entryId)` helper. To reproduce the design doc's "scroll to top on navigation" behavior (see [section 8](#8-interactions-animations--transitions-reference)), a small `ScrollToTop` component listens to `useLocation().pathname` and calls `window.scrollTo({ top: 0, behavior: 'smooth' })`, mounted once near the router.
 
 ### Adding a new page
 
-1. Create `src/pages/NewPage.tsx` with a default export.
-2. Add the new page key to the `Page` type in `App.tsx`.
-3. Add `{page === 'newpage' && <NewPage navigate={navigate} />}` inside `<main>` in `App.tsx`.
-4. Add a nav entry in `Header.tsx`.
+1. Create the page component inside the relevant `web/src/features/<feature>/` folder.
+2. Add a route entry (wrapped in `ProtectedRoute` if it requires auth) to `web/src/app/router.tsx`.
+3. Add a nav entry in `Header.tsx` if it should appear in primary navigation.
 
 ---
 
@@ -363,23 +348,19 @@ Always pass `navigate` down as a prop. Never import `navigate` from a global sto
 
 ### Header
 
-**File:** `src/components/Header.tsx`
+**File:** `web/src/components/Header.tsx`
 
-**Purpose:** Persistent navigation bar, sticky at the top of every page. Contains the brand lockup, desktop nav links, the About dropdown, and a mobile hamburger menu.
+**Purpose:** Persistent navigation bar, sticky at the top of every page. Contains the brand lockup, desktop nav links, and a mobile hamburger menu.
 
-**Props:**
-```ts
-interface Props {
-  currentPage: Page
-  navigate: (p: Page) => void
-}
-```
+**Behavior (react-router based, no props needed):**
+- Uses `useLocation()` to determine the active route for the underline indicator (instead of a `currentPage` prop).
+- Uses `useAuth()` to decide whether the "Account" nav item links to `/account` (signed in) or `/login` (signed out), and to expose a sign-out action.
+- Uses `<Link>` for all nav items instead of calling a `navigate()` prop.
 
 **Layout:** `position: sticky; top: 0; z-index: 50`. Height is 56px (`h-14`). Background: `var(--sg-teal)`. Max content width: `max-w-2xl mx-auto`.
 
 **Desktop nav** (visible at `sm:` breakpoint and above):
-- Home, History, Account as text buttons
-- About as a dropdown trigger (see `AboutDropdown`)
+- Home, History, Account as `<Link>`s
 - Active page indicated by a white underline bar (`position: absolute; bottom: -2px; height: 2px; border-radius: full; background: white; opacity: 0.7`)
 - Inactive color: `rgba(255,255,255,0.72)` → hover/active: `white`
 - Font: `font-display font-600 text-sm`
@@ -393,7 +374,7 @@ interface Props {
 
 **Mobile menu panel** (conditionally rendered below header):
 - Background: `var(--sg-teal-dark)`, top border: `1px solid rgba(255,255,255,0.12)`
-- Contains nav buttons + About sub-items as a flat list
+- Contains nav buttons as a flat list, plus a sign-out action
 - Closes on any navigation action
 
 **CrossIcon SVG** (inside brand lockup):
@@ -403,37 +384,13 @@ interface Props {
 <rect x="0"   y="5" width="18" height="3" rx="1.5" fill="white" opacity="0.9" />  // horizontal
 ```
 
----
-
-### AboutDropdown
-
-**File:** `src/components/Header.tsx` (inline, not extracted)
-
-**Purpose:** Flyout menu from the About nav button. Three static info links.
-
-**Behavior:**
-- Opens/closes on button click (`open` boolean state, `useState`)
-- Closes on outside click — wired with `useEffect` + `document.addEventListener('mousedown', handler)`; the handler checks `ref.current.contains(e.target)` to ignore clicks inside the dropdown
-
-**Positioning:** `position: absolute; right: 0; top: 100%; margin-top: 8px`
-
-**Card styles:**
-```css
-background: white;
-border: 1px solid rgba(43,191,176,0.15);
-border-radius: 1rem;  /* rounded-2xl */
-box-shadow: 0 10px 40px rgba(0,0,0,0.1);  /* shadow-xl */
-```
-
-**Item hover:** `backgroundColor: 'rgba(43,191,176,0.06)'` on `mouseenter`, cleared on `mouseleave`
-
-**Chevron animation:** `rotate-180` class toggled when `open === true`, with `transition-transform duration-200`
+> **Note:** The earlier "About" dropdown nav item has been dropped — the real app has no About/info content to link to. If informational pages are added later, reintroduce a dropdown following the same outside-click-close and chevron-rotation patterns described in [section 8](#8-interactions-animations--transitions-reference).
 
 ---
 
 ### GuidanceCard
 
-**File:** `src/pages/EntryViewPage.tsx` (inline)
+**File:** `web/src/features/confessions/EntryDetailPage.tsx` (inline, local to the entry view)
 
 **Purpose:** Consistent wrapper for each piece of AI guidance content on the Entry View page.
 
@@ -470,7 +427,7 @@ interface Props {
 
 ### Section / Field (Account)
 
-**File:** `src/pages/AccountPage.tsx` (inline)
+**File:** `web/src/features/account/AccountPage.tsx` (inline)
 
 **`Section` props:**
 ```ts
@@ -498,7 +455,7 @@ Renders an uppercase `text-xs tracking-wider` label above the field content. Alw
 
 ### UrgeDots
 
-**File:** `src/pages/HistoryPage.tsx` (inline)
+**File:** `web/src/components/UrgeDots.tsx` (shared component — used by both the History page and Entry View page)
 
 **Purpose:** Compact visual representation of urge intensity (1–5) using five colored dots.
 
@@ -524,7 +481,7 @@ Dots at or below the value are filled with the appropriate urge color; dots abov
 
 ### ThreeCrosses SVG
 
-**File:** `src/pages/HomePage.tsx` (inline)
+**File:** `web/src/features/dashboard/HomePage.tsx` (inline)
 
 **Purpose:** Brand illustration in the hero — three crosses of staggered heights, rendered in white at varying opacity to suggest depth.
 
@@ -543,7 +500,7 @@ All shapes use `rx="2"` for slightly soft corners. The graduated opacity creates
 
 ### SpinIcon
 
-**File:** `src/pages/HomePage.tsx` (inline)
+**File:** `web/src/features/dashboard/HomePage.tsx` (inline)
 
 **Purpose:** Loading indicator shown inside the submit button while AI guidance is being generated.
 
@@ -562,16 +519,14 @@ All shapes use `rx="2"` for slightly soft corners. The graduated opacity creates
 
 ### Home Page
 
-**File:** `src/pages/HomePage.tsx`
+**File:** `web/src/features/dashboard/HomePage.tsx` (merges the former `DashboardPage` + `NewEntryPage`/`NewEntryForm`)
 
-**Purpose:** Primary entry point. Users write a new confession, rate urge intensity, and submit to receive AI guidance. Also provides a shortcut to History.
+**Purpose:** Primary entry point at `/`. Users write a new confession, rate urge intensity, and submit to receive AI guidance; also shows a preview of recent entries with a link to full History.
 
-**State:**
-```ts
-const [confession, setConfession] = useState('')   // textarea content
-const [urge, setUrge] = useState(3)                // 1–5 integer
-const [submitting, setSubmitting] = useState(false) // loading state
-```
+**Data & state (real hooks, not mock state):**
+- Confession form uses the **existing** `react-hook-form` + zod validation and `useCreateConfessionEntry` mutation (carried over from `NewEntryForm.tsx`) — not a bare `useState` string.
+- `submitting` maps to the mutation's `isPending`.
+- Recent-entries preview uses `useConfessionEntries` (and optionally `useRecentGuidance`), showing ~3 most recent as compact History-style cards.
 
 **Layout structure:**
 ```
@@ -589,7 +544,8 @@ const [submitting, setSubmitting] = useState(false) // loading state
       <div [urge slider]>              ← label + badge + range + ticks
       <button [submit] />
     </div>
-    <button [view past entries] />       ← secondary nav shortcut
+    <section [recent entries preview] /> ← ~3 recent entry cards
+    <a [view all history] href="/entries" />
   </div>
 </div>
 ```
@@ -623,59 +579,46 @@ const [submitting, setSubmitting] = useState(false) // loading state
 | Hover | `var(--sg-green-dark)` | `pointer` | same |
 | Submitting | `#a8d9d3` | `not-allowed` | `<SpinIcon>` + "Receiving guidance…" |
 
-The 900ms `setTimeout` simulates API latency. In production, replace with the actual API call; the `submitting` state should remain `true` until the promise resolves.
+`submitting` is driven by `useCreateConfessionEntry().isPending` — there is no simulated `setTimeout` latency; the button stays in the submitting state for the real duration of the Supabase insert.
 
-**Submit → navigation flow:**
-1. `onSubmit(confession, urge)` is called (passed from `App.tsx`)
-2. `App.tsx` creates the new entry, generates `aiGuidance`, appends to `entries` state
-3. `App.tsx` calls `navigate('entry', newEntry.id)`
-4. `EntryViewPage` renders with the new entry
+**Submit → navigation flow (unchanged from the pre-redesign app — must be preserved exactly):**
+1. `useCreateConfessionEntry` mutation inserts the `confession_entries` row.
+2. On success, `useNavigate()` sends the user to `/entries/:entryId` with `{ state: { justCreated: true } }`.
+3. `EntryDetailPage` sees `justCreated` and calls `useEntryGuidanceOrchestrator().trigger(entryId)`, which streams the AI guidance generation (see [Entry View Page](#entry-view-page)).
 
 ---
 
 ### Account Page
 
-**File:** `src/pages/AccountPage.tsx`
+**File:** `web/src/features/account/AccountPage.tsx` (merges the former `SettingsPage` + `SelfReportPage`/`SelfReportForm` + profile display; the `LoginPage` is restyled to match and is what a signed-out user sees when the header's Account link routes them to `/login`)
 
-**Purpose:** Profile management. Three sections: Profile (email display), Security (change password), Addiction Severity (self-report).
+**Purpose:** Profile management. Four sections: Profile (email display), Security (change password), Addiction Severity (self-report + trend), Preferences (gender).
 
-**Props:**
-```ts
-interface Props {
-  onSelfReport: (score: number) => void
-}
-```
-
-**State:**
-```ts
-const [showPasswordForm, setShowPasswordForm] = useState(false)
-const [currentPw, setCurrentPw]   = useState('')
-const [newPw, setNewPw]           = useState('')
-const [confirmPw, setConfirmPw]   = useState('')
-const [pwSaved, setPwSaved]       = useState(false)
-const [selfSeverity, setSelfSeverity] = useState(2)
-const [severitySaved, setSeveritySaved] = useState(false)
-```
+**Data & state (real hooks, not a mock `onSelfReport` prop):**
+- Profile/email: `useAuth().user.email`.
+- Security/password: local form state (`currentPw`/`newPw`/`confirmPw`/`showPasswordForm`/`pwSaved`) as described below; the Save action calls `useAuth().updatePassword(newPw)`, which re-verifies `currentPw` via `supabase.auth.signInWithPassword` before calling `supabase.auth.updateUser({ password })`.
+- Addiction Severity: reuses `useProfile()` (pre-populates the selector) and `useSubmitSelfReport()` (inserts an `addiction_assessments` row with `source: 'self_report'`) in place of a bare `onSelfReport(score)` callback.
+- Preferences (gender): reuses `useUpdateGender()`.
 
 **Password flow:**
 1. User sees a "Change password" button row (collapsed state)
 2. Clicking it sets `showPasswordForm = true`, revealing three `PasswordInput` fields
 3. Validation: `newPw !== confirmPw` shows an inline error message in red
 4. Save button is disabled (background `#a8d9d3`, `cursor: not-allowed`) until all three fields are filled and passwords match
-5. On save: `pwSaved = true` (button shows "✓ Saved"), then after 2 seconds resets to `false` and `showPasswordForm = false`
+5. On save: calls `useAuth().updatePassword(newPw)`; on success `pwSaved = true` (button shows "✓ Saved"), then after 2 seconds resets to `false` and `showPasswordForm = false`; on failure (e.g. wrong current password) shows an inline error instead
 
 **Severity selector:**
 - Five buttons in a `flex flex-wrap gap-2` row
 - Each button shows the numeric score and its label (Minimal → Severe)
 - Selected state: border and text in `severityColors[n]`, background `${severityColors[n]}18`
 - Unselected state: `var(--sg-border)` border, `var(--sg-text-muted)` text
-- On save: calls `onSelfReport(selfSeverity)` which creates a `SeverityRecord` with `type: 'self-reported'` in `App.tsx`
+- On save: calls `useSubmitSelfReport().mutate(selfSeverity)`, which inserts an `addiction_assessments` row with `source: 'self_report'`
 
 **SeverityMiniChart (embedded below the severity selector):**
 
-**File:** `src/pages/AccountPage.tsx` (inline)
+**File:** `web/src/features/account/AccountPage.tsx` (inline)
 
-**Purpose:** A compact SVG sparkline showing the severity trend across the last 8 records, displayed directly beneath the Addiction Severity self-report controls so the user can see how their new rating fits historical trend.
+**Purpose:** A compact SVG sparkline showing the severity trend across the last 8 records, displayed directly beneath the Addiction Severity self-report controls so the user can see how their new rating fits historical trend. Fed by the same `useSeverityHistory` hook used by the History page's severity timeline (see below) — pull the most recent 8 records from it rather than maintaining a separate query.
 
 **Implementation approach:**
 - Uses a raw `<svg viewBox="0 0 100 100" preserveAspectRatio="none">` so it scales to fill its container
@@ -684,23 +627,19 @@ const [severitySaved, setSeveritySaved] = useState(false)
 - X axis: evenly distributed; `x = i * (100 / (count - 1))`
 - Grid lines: 4 horizontal lines at `y = 20, 40, 60, 80` with `rgba(43,191,176,0.08)` stroke
 - Trend line: `<polyline>` with `stroke="var(--sg-teal)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"`
-- Dots: `<circle r="4" fill="white">` with stroke color depending on record type — teal for AI-recommended, amber for self-reported
+- Dots: `<circle r="4" fill="white">` with stroke color depending on record source — teal for `source: 'ai'`, amber for `source: 'self_report'`
 - Container height: `h-16` (64px); uses `position: relative` with `<svg>` absolutely positioned inside
 
 ---
 
 ### History Page
 
-**File:** `src/pages/HistoryPage.tsx`
+**File:** `web/src/features/confessions/EntriesListPage.tsx`
 
-**Props:**
-```ts
-interface Props {
-  entries: Entry[]
-  severityHistory: SeverityRecord[]
-  navigate: (p: Page, entryId?: string) => void
-}
-```
+**Data (real hooks, not props):**
+- Entries: `useConfessionEntries()`.
+- Severity timeline: `useSeverityHistory()` (new hook in `web/src/features/assessment/hooks/`, queries `addiction_assessments` for the current user ordered by `created_at desc`) — replaces the mock `severityHistory: SeverityRecord[]` prop; a `SeverityRecord`'s `type` maps to the row's `source` (`'self_report'` → "Self-Reported", `'ai'` → "AI Recommended") and `score` maps to `severity_level`.
+- Navigation: `<Link to={`/entries/${entry.id}`}>` instead of a `navigate` prop.
 
 **Layout structure:**
 ```
@@ -714,62 +653,62 @@ interface Props {
   [Section: Addiction Severity Timeline]
     [TrendIcon + "Addiction Severity Timeline" label]
     <div [rounded-3xl white card]>
-      [divider list of SeverityRecord rows]
+      [divider list of addiction_assessments rows]
     </div>
 </div>
 ```
 
 **Entry card:**
-- Full-width button (`w-full text-left`) — the entire card is tappable
-- On click: `navigate('entry', entry.id)`
+- Full-width `<Link>` (`w-full text-left block`) — the entire card is tappable, routes to `/entries/:entryId`
 - Hover: `backgroundColor: 'var(--sg-teal-50, #f0fdfb)'`, transition `150ms`
-- Top row: date (teal, `font-700`) + time (muted) + `<UrgeDots>` (right-aligned)
+- Top row: date (teal, `font-700`) + time (muted) + `<UrgeDots value={entry.urge_intensity} />` (right-aligned)
 - Body: `line-clamp-2` truncation of confession text
 - Footer: "Urge: N/5" on left, "View guidance →" teal link on right
 
 **Severity timeline list:**
 - Each row: `flex items-center justify-between px-5 py-3.5`
-- Left: bold type label ("Self-Reported" or "AI Recommended") + date in muted text
-- Right: type badge (amber tinted for self-reported, teal tinted for AI) + score number in severity color + severity label below
+- Left: bold type label ("Self-Reported" or "AI Recommended", derived from the row's `source`) + date in muted text
+- Right: type badge (amber tinted for `self_report`, teal tinted for `ai`) + score number in severity color + severity label below
 
 ---
 
 ### Entry View Page
 
-**File:** `src/pages/EntryViewPage.tsx`
+**File:** `web/src/features/confessions/EntryDetailPage.tsx`
 
-**Props:**
-```ts
-interface Props {
-  entry: Entry
-  navigate: (p: Page) => void
-}
-```
+**Data (real hooks/params, not props):**
+- `entryId` comes from `useParams<{ entryId: string }>()`, entry data from `useConfessionEntry(entryId)`.
+- Back navigation uses `<Link to="/entries">` instead of a `navigate('history')` callback.
+- All AI guidance content and its independent loading/success/error states come from `useEntryGuidanceOrchestrator()` (streaming NDJSON, see [Data Model](#9-data-model)) merged with whatever's already persisted (`useReadingPlanForEntry`, `useGuidanceRecordForEntry`, `useGuidedPrayerForEntry`, `useAssessmentForEntry`) — this is real, incrementally-arriving data, not a single static `entry.aiGuidance` object. **Every `GuidanceCard` must keep reflecting its own `loading`/`success`/`error`/`idle` status independently** — do not collapse this into one all-or-nothing spinner.
+- The reading-plan card renders the existing `ReadingPlanCard` (YouVersion `BibleCard` SDK, versioned `plan_json` v1/v2) wrapped in the `GuidanceCard` chrome below — it is **not** replaced by a plain static numbered list of verse strings.
+- The severity section renders the existing accept/record flow (`entryAssessment` vs. `SeverityRecommendationCard`) inside the gradient banner styling below.
 
 **Layout structure:**
 ```
-[Back button → 'history']
+[Back button → '/entries']
 [Date + "Confession Entry" heading]
 
 <GuidanceCard label="Your confession">   confession text
-<GuidanceCard label="Urge intensity">    filled dot grid
+<GuidanceCard label="Urge intensity">    <UrgeDots value={entry.urge_intensity} />
 
 [AI Guidance divider — horizontal rule with centered label]
 
-[Severity assessment banner]             gradient bg, score + label
-<GuidanceCard label="An encouraging word">   italic quote
-<GuidanceCard label="Personalized reading plan">  numbered list
-<GuidanceCard label="Guided prayer">     prayer text in green-tinted box
+[Severity assessment banner]             gradient bg, score + label (entryAssessment or SeverityRecommendationCard accept flow)
+<GuidanceCard label="An encouraging word">   guidanceRecord.content (motivational)
+<GuidanceCard label="Personalized reading plan">  ReadingPlanCard (YouVersion BibleCard)
+<GuidanceCard label="Guided prayer">     guidedPrayer.content, in green-tinted box
+
+[Collapsed "Developer tools" disclosure — existing debug-prompts aid, visually tucked away]
 ```
 
 **Back button:**
 ```tsx
-<button onClick={() => navigate('history')}
+<Link to="/entries"
   className="flex items-center gap-1.5 mb-6 text-sm font-display font-700 transition-opacity hover:opacity-70"
   style={{ color: 'var(--sg-teal)' }}>
   <ChevronLeft />
   Back to history
-</button>
+</Link>
 ```
 
 **Severity assessment banner:**
@@ -777,12 +716,10 @@ interface Props {
 - Background: `linear-gradient(135deg, {color}12, {color}06)` — very subtle gradient tint
 - Border: `1.5px solid {color}30`
 - Left: a square tile `w-14 h-14 rounded-2xl` showing the numeric score large + "/5" small
-- Right: bold label + source attribution in muted text
+- Right: bold label + source attribution in muted text (recorded `entryAssessment.source` — `'ai'` → "accepted AI recommendation", `'self_report'` → "your own report" — or, if not yet recorded, the in-flight `guidance.severity` recommendation with its accept action)
 
-**Reading plan list:**
-- Each verse in a `rounded-xl px-3 py-2.5` container with `rgba(124,111,205,0.06)` background (soft purple tint)
-- Leading number in a `w-5 h-5 rounded-full` purple pill
-- Font: `font-display font-600 text-sm` for the verse reference
+**Reading plan card:**
+- Keep the existing `ReadingPlanCard`/YouVersion `BibleCard` rendering; wrap it in the `GuidanceCard` chrome (icon, uppercase purple-accented label, `rounded-3xl` container) rather than reverting to a plain numbered verse-string list
 
 **AI guidance divider:**
 ```tsx
@@ -838,6 +775,8 @@ Combined with `transition-all duration-200` on the input element, this produces 
 
 ### Pattern: Outside-click close for dropdowns
 
+Not currently used (the About dropdown was dropped — see [Header](#header)), but kept here as the reference pattern if a future dropdown is added:
+
 ```tsx
 const ref = useRef<HTMLDivElement>(null)
 
@@ -867,11 +806,15 @@ Button text changes to "✓ Saved" while `saved === true`. No extra library need
 
 ### Pattern: Page scroll reset on navigation
 
-```ts
-const navigate = (p: Page, entryId?: string) => {
-  if (entryId) setSelectedEntryId(entryId)
-  setPage(p)
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+Since routing uses react-router (not a custom `navigate()` helper), this is implemented as a small component mounted once near the router root, reacting to route changes:
+
+```tsx
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [pathname])
+  return null
 }
 ```
 
@@ -893,14 +836,6 @@ These are Tailwind utility classes toggled conditionally via template literals:
 className={`block w-5 h-0.5 bg-white rounded transition-all duration-200 ${open ? 'rotate-45 translate-y-1.5' : ''}`}
 ```
 
-### Animation: About chevron
-
-```tsx
-className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-```
-
-SVG arrow rotates 180° when the dropdown opens.
-
 ### Potential future animations (not yet implemented)
 
 | Interaction | Recommended approach |
@@ -915,128 +850,131 @@ SVG arrow rotates 180° when the dropdown opens.
 
 ## 9. Data Model
 
-### Entry
+All data is persisted in Supabase (Postgres + RLS) and fetched via typed React Query hooks — there is no client-only mock state or `localStorage` fallback. Types are generated into `supabase/types/database.types.ts`.
+
+### confession_entries
 
 ```ts
-interface Entry {
-  id: string           // Date.now().toString() — replace with UUID in production
-  date: string         // ISO 8601: new Date().toISOString()
-  confession: string   // Trimmed user input
-  urgeIntensity: number // 1–5 integer
-  aiGuidance?: {
-    encouragement: string   // ~2-3 sentence personalized encouragement
-    readingPlan: string[]   // Array of Bible references, e.g. ['Psalm 34:18', 'Romans 8:1']
-    prayer: string          // ~3-5 sentence guided prayer
-    severityLevel: number   // 1–5 assessed severity
-    severityLabel: string   // 'Minimal' | 'Mild' | 'Moderate' | 'Significant' | 'Severe'
-  }
+interface ConfessionEntry {
+  id: string             // UUID
+  user_id: string
+  content: string        // The confession text
+  urge_intensity: number // 1–5 integer
+  created_at: string
+  updated_at: string
 }
 ```
 
-`aiGuidance` is optional — an entry can be saved without it (e.g. if the API call fails). The Entry View page checks `if (aiGuidance)` before rendering the guidance section.
+Maps to the design doc's "confession" + "urge intensity" concepts. Created via `useCreateConfessionEntry` from the Home page form.
 
-### SeverityRecord
+### addiction_assessments
 
 ```ts
-interface SeverityRecord {
-  date: string           // YYYY-MM-DD: new Date().toISOString().slice(0, 10)
-  score: number          // 1–5
-  type: 'self-reported' | 'recommended'
+type AssessmentSource = 'self_report' | 'ai'
+
+interface AddictionAssessment {
+  id: string
+  user_id: string
+  source: AssessmentSource
+  severity_level: number          // 1–5
+  addiction_type: string | null
+  notes: string | null
+  based_on_entry_id: string | null // FK to confession_entries, when tied to a specific entry
+  created_at: string
 }
 ```
 
-Self-reported records are created from Account page. Recommended records are created automatically when a new entry is submitted.
+This is the real backing table for what the design doc calls a "SeverityRecord": `source: 'self_report'` rows come from the Account page's severity selector (`useSubmitSelfReport`); `source: 'ai'` rows are created only after the user explicitly accepts an AI recommendation on the Entry View page (`SeverityRecommendationCard`) — the recommendation itself (`recommend-severity` edge function) is not persisted until accepted. `useSeverityHistory` queries this table (ordered by `created_at desc`) to feed both the History page's timeline and the Account page's `SeverityMiniChart`. `severityColors`/`severityLabels` (section 2) index by `severity_level`.
 
-### AI severity inference (current stub)
+### guidance_records, reading_plans, guided_prayers
 
 ```ts
-severityLevel: urgeIntensity >= 4 ? 3 : urgeIntensity >= 3 ? 2 : 1
+interface GuidanceRecord {   // motivational encouragement
+  id: string; user_id: string; confession_entry_id: string
+  assessment_id: string | null; content: string; created_at: string
+}
+
+interface ReadingPlan {
+  id: string; user_id: string; confession_entry_id: string
+  title: string; description: string | null
+  plan_json: { version: 1; passages: { reference: string }[] }
+            | { version: 2; passages: { number: number; reference: string; summary: string }[] }
+  created_at: string
+}
+
+interface GuidedPrayer {
+  id: string; user_id: string; confession_entry_id: string
+  content: string
+  desperation_level: number | null // 1–10; 1–3 joyful, 4–7 peaceful, 8–10 zealous tier
+  created_at: string
+}
 ```
 
-In production, replace this with a real API call that considers the full confession text, urge intensity, and the user's recent history.
+`ReadingPlanCard` renders `plan_json` via the YouVersion `BibleCard` SDK component and must tolerate both v1 and v2 shapes — it is not a plain array of verse-reference strings as an earlier draft of this doc suggested.
 
-### Persistence
+### profiles
 
-Currently all state lives in React memory — it resets on page refresh. Future options:
+```ts
+interface Profile {
+  user_id: string
+  current_severity_level: number | null
+  current_addiction_type: string | null
+  gender: 'male' | 'female' | 'none' | null
+  updated_at: string
+}
+```
 
-| Option | Complexity | Privacy |
-|--------|-----------|---------|
-| `localStorage` | Low | Client-only, no server needed |
-| Supabase (with RLS) | Medium | Server-persisted, per-user isolation |
-| Encrypted `localStorage` | Medium | Client-only but protected at rest |
+Backs the Account page's Preferences (gender) section and pre-populates the severity selector via `useProfile`.
+
+### Entry guidance generation (real, streaming — not a synchronous stub)
+
+Submitting a confession does **not** synchronously attach a static `aiGuidance` object. Instead, `EntryDetailPage` calls `useEntryGuidanceOrchestrator().trigger(entryId)` (when navigated to with `{ state: { justCreated: true } }`), which POSTs to the `generate-entry-guidance` edge function and reads back **newline-delimited JSON** progress events as each of the following resolves, independently:
+
+- `assess-desperation` → `{ desperationLevel: 1–10 }` (ephemeral, drives the guided-prayer tier, not persisted itself)
+- `generate-reading-plan` → inserts a `reading_plans` row
+- `generate-motivational` → inserts a `guidance_records` row
+- `recommend-severity` → `{ recommendedSeverity: 1–5 }` (not persisted until the user accepts it)
+- `generate-guided-prayer` → runs once desperation resolves; inserts a `guided_prayers` row
+
+Each `GuidanceCard` on the Entry View page reflects its own `idle`/`loading`/`success`/`error` state from this stream (see the `EntryGuidanceState` shape in `useEntryGuidanceOrchestrator.ts`). Revisiting an already-guided entry instead just reads whatever's already persisted via the `useReadingPlanForEntry`/`useGuidanceRecordForEntry`/`useGuidedPrayerForEntry`/`useAssessmentForEntry` queries.
 
 ---
 
 ## 10. Extending the App
 
-### Adding AI API integration
+The items below are genuinely still open — AI guidance generation, authentication, reading-plan display, and URL routing (formerly listed here as "future work") are already implemented in the real app and are described throughout this document instead.
 
-Replace the stub in `App.tsx`'s `addEntry` function:
-
-```ts
-// Current stub (synchronous):
-aiGuidance: {
-  encouragement: "…",
-  readingPlan: ['Psalm 34:18', …],
-  …
-}
-
-// Replace with:
-const aiGuidance = await fetchGuidanceFromAPI({ confession, urgeIntensity })
-```
-
-Keep the `submitting` state `true` for the full duration of the API call. Show `SpinIcon` inside the submit button and "Receiving guidance…" as the button label during this time.
-
-### Adding real authentication
-
-1. Integrate Supabase Auth or a similar provider.
-2. Gate all pages behind an auth check in `App.tsx`.
-3. Store `Entry` and `SeverityRecord` in Supabase tables with row-level security so each user only sees their own data.
-4. Update `Account.tsx` to pull the real email from the auth session.
-
-### Adding the reading plan display (future pass)
-
-The `readingPlan` field is already an array of verse references. In a future iteration, each verse could:
-- Link out to YouVersion or Bible.com
-- Be fetched as full verse text via a Bible API
-- Be displayed in an expandable accordion within `EntryViewPage`
-
-### Adding page transitions (framer-motion)
+### Adding richer page transitions (framer-motion)
 
 ```bash
-pnpm add framer-motion
+npm install --workspace web framer-motion
 ```
 
-Wrap the page content in `App.tsx`:
+Since routing is react-router-based, wrap the routed content (e.g. in `AppRouter` or a shared layout) rather than a `page` state switch:
 ```tsx
 import { AnimatePresence, motion } from 'framer-motion'
+import { useLocation, useOutlet } from 'react-router-dom'
+
+const location = useLocation()
+const element = useOutlet()
 
 <AnimatePresence mode="wait">
   <motion.div
-    key={page}
+    key={location.pathname}
     initial={{ opacity: 0, y: 8 }}
     animate={{ opacity: 1, y: 0 }}
     exit={{ opacity: 0, y: -8 }}
     transition={{ duration: 0.2 }}
   >
-    {/* current page */}
+    {element}
   </motion.div>
 </AnimatePresence>
 ```
 
-### Adding real URL routing
+### Hard-deleting the legacy redirect routes
 
-```bash
-pnpm add react-router
-```
+Once you've confirmed nothing links to them, remove the `/settings`, `/assessment`, and `/entries/new` redirect routes from `web/src/app/router.tsx` entirely (see [section 5](#5-application-shell--routing)).
 
-Replace the `page` state machine with `<BrowserRouter>` + `<Routes>`. Map each page to a path:
+### Extending the reading plan display further
 
-| Route | Component |
-|-------|-----------|
-| `/` | `HomePage` |
-| `/account` | `AccountPage` |
-| `/history` | `HistoryPage` |
-| `/entry/:id` | `EntryViewPage` |
-
-This enables deep-linking, browser back/forward, and bookmarking.
+`reading_plans.plan_json` already carries structured passages (v2: `{ number, reference, summary }`). Future iterations could add per-passage completion tracking or link out to a full YouVersion reading-plan experience beyond the single-passage `BibleCard`.

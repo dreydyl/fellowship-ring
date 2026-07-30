@@ -1,17 +1,125 @@
-/* Global stylesheet.
-   TODO: Add design tokens / global resets as the design system is defined. */
+/* 1. Google Font imports — MUST come first */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600&display=swap');
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* 2. Tailwind CSS v4 import */
+@import 'tailwindcss';
 
+/* 3. Extended Tailwind color tokens (for IntelliSense / utility classes) */
+@theme inline {
+  --color-teal: var(--sg-teal);
+  --color-teal-dark: var(--sg-teal-dark);
+  --color-teal-deep: var(--sg-teal-deep);
+  --color-green: var(--sg-green);
+  --color-green-dark: var(--sg-green-dark);
+  --color-surface: var(--sg-surface);
+  --color-text: var(--sg-text);
+  --color-text-muted: var(--sg-text-muted);
+  --color-border: var(--sg-border);
+}
+
+/* 4. CSS custom properties */
 :root {
   color-scheme: light;
+
+  /* Primary palette */
+  --sg-teal:       #2bbfb0;   /* Primary brand color — header BG, links, focus rings */
+  --sg-teal-dark:  #1fa89a;   /* Hover state for teal surfaces */
+  --sg-teal-deep:  #197e75;   /* Active / pressed teal */
+
+  /* Action */
+  --sg-green:      #3dbf7e;   /* Submit button, positive confirmations */
+  --sg-green-dark: #2da86c;   /* Hover state for green buttons */
+
+  /* Surfaces */
+  --sg-white:      #ffffff;
+  --sg-surface:    #f7fffe;   /* App background — very slightly tinted, not pure white */
+
+  /* Text */
+  --sg-text:       #1a3835;   /* Body copy — dark teal-black */
+  --sg-text-muted: #5a8480;   /* Labels, captions, placeholders */
+
+  /* Structure */
+  --sg-border:     rgba(43, 191, 176, 0.18);  /* Card borders, dividers */
+
+  /* Font stacks (see Typography section) */
+  --font-display:  'Nunito', sans-serif;
+  --font-body:     'Open Sans', sans-serif;
 }
 
-body {
-  margin: 0;
-  font-family: system-ui, sans-serif;
-  background-color: #ffffff;
-  color: #111827;
+/* 5. Global reset */
+* {
+  box-sizing: border-box;
 }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* 6. Body defaults */
+body {
+  font-family: var(--font-body);
+  background-color: var(--sg-surface);
+  color: var(--sg-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 7. Scrollbar styling */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(43, 191, 176, 0.3);
+  border-radius: 2px;
+}
+
+/* 8. Font utility classes */
+.font-display { font-family: var(--font-display); }
+.font-body    { font-family: var(--font-body); }
+
+/* 9. Range input styling */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(
+    to right,
+    var(--sg-teal) 0%,
+    var(--sg-teal) var(--range-pct, 50%),
+    #c8eae7 var(--range-pct, 50%),
+    #c8eae7 100%
+  );
+  outline: none;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--sg-teal);
+  border: 2px solid var(--sg-white);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--sg-teal);
+  border: 2px solid var(--sg-white);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+
