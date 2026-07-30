@@ -193,24 +193,37 @@ function SeverityMiniChart({
 }
 
 export function AccountPage() {
-  const { user } = useAuth();
+  const { user, updatePassword } = useAuth();
 
-  // Security section — local form state only; save is a TODO no-op
-  // until real password-change wiring lands (Prompt 8).
+  // Security section — local form state, wired to useAuth().updatePassword,
+  // which re-verifies currentPw via supabase.auth.signInWithPassword before
+  // calling supabase.auth.updateUser.
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [currentPw, setCurrentPw] = useState('');
   const [newPw, setNewPw] = useState('');
   const [confirmPw, setConfirmPw] = useState('');
   const [pwSaved, setPwSaved] = useState(false);
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
 
   const passwordsMismatch = newPw !== '' && confirmPw !== '' && newPw !== confirmPw;
   const canSavePassword =
     currentPw !== '' && newPw !== '' && confirmPw !== '' && newPw === confirmPw;
 
-  function handleSavePassword() {
-    if (!canSavePassword) return;
-    // TODO(Prompt 8): wire this up to useAuth().updatePassword(newPw),
-    // re-verifying currentPw via supabase.auth.signInWithPassword first.
+  async function handleSavePassword() {
+    if (!canSavePassword || pwSaving) return;
+    setPwError(null);
+    setPwSaving(true);
+
+    const { error } = await updatePassword(currentPw, newPw);
+
+    setPwSaving(false);
+
+    if (error) {
+      setPwError(error);
+      return;
+    }
+
     setPwSaved(true);
     setTimeout(() => {
       setPwSaved(false);
@@ -277,18 +290,24 @@ export function AccountPage() {
                 </p>
               )}
 
+              {pwError && (
+                <p className="mb-3 text-sm" style={{ color: '#d94f4f' }}>
+                  {pwError}
+                </p>
+              )}
+
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={handleSavePassword}
-                  disabled={!canSavePassword}
+                  disabled={!canSavePassword || pwSaving}
                   className="rounded-xl px-4 py-2 text-sm font-display font-700 text-white"
                   style={{
                     backgroundColor: canSavePassword ? 'var(--sg-teal)' : '#a8d9d3',
-                    cursor: canSavePassword ? 'pointer' : 'not-allowed',
+                    cursor: canSavePassword && !pwSaving ? 'pointer' : 'not-allowed',
                   }}
                 >
-                  {pwSaved ? '✓ Saved' : 'Save'}
+                  {pwSaved ? '✓ Saved' : pwSaving ? 'Saving…' : 'Save'}
                 </button>
                 <button
                   type="button"
@@ -297,6 +316,7 @@ export function AccountPage() {
                     setCurrentPw('');
                     setNewPw('');
                     setConfirmPw('');
+                    setPwError(null);
                   }}
                   className="text-sm font-display font-700"
                   style={{ color: 'var(--sg-text-muted)' }}

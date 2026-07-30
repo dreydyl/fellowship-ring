@@ -18,6 +18,7 @@ interface AuthContextValue {
   signUp: (email: string, password: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  updatePassword: (currentPassword: string, newPassword: string) => Promise<{ error: string | null }>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -71,6 +72,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   }
 
+  // Re-verifies the user's current password via signInWithPassword before
+  // calling supabase.auth.updateUser — this prevents a still-logged-in
+  // session from silently changing the password without confirming the
+  // current credentials first.
+  async function updatePassword(currentPassword: string, newPassword: string) {
+    const email = session?.user.email;
+    if (!email) {
+      return { error: 'You must be signed in to change your password.' };
+    }
+
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email,
+      password: currentPassword,
+    });
+    if (verifyError) {
+      return { error: 'Current password is incorrect.' };
+    }
+
+    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+    return { error: updateError?.message ?? null };
+  }
+
   const value: AuthContextValue = {
     session,
     user: session?.user ?? null,
@@ -78,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signUp,
     signIn,
     signOut,
+    updatePassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
