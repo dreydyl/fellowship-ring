@@ -142,6 +142,7 @@ export type Database = {
           user_id: string;
           confession_entry_id: string;
           content: string;
+          desperation_level: number | null;
           created_at: string;
         };
         Insert: {
@@ -149,6 +150,7 @@ export type Database = {
           user_id: string;
           confession_entry_id: string;
           content: string;
+          desperation_level?: number | null;
           created_at?: string;
         };
         Update: {
@@ -156,6 +158,7 @@ export type Database = {
           user_id?: string;
           confession_entry_id?: string;
           content?: string;
+          desperation_level?: number | null;
           created_at?: string;
         };
         Relationships: [];
