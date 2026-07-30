@@ -1,7 +1,7 @@
 // Home page — merges the former DashboardPage + NewEntryPage/NewEntryForm.
 // See docs/DESIGN.md section 7 ("Home Page").
 
-import { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -241,8 +241,10 @@ export function HomePage() {
                 <li key={entry.id}>
                   <Link
                     to={`/entries/${entry.id}`}
-                    className="block rounded-3xl bg-white p-4 shadow-sm"
+                    className="block rounded-3xl bg-white p-4 shadow-sm transition-colors duration-200"
                     style={{ border: '1px solid var(--sg-border)' }}
+                    onMouseEnter={(e: MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor = 'var(--sg-teal-50, #f0fdfb)')}
+                    onMouseLeave={(e: MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor = 'white')}
                   >
                     <div className="flex items-center justify-between">
                       <p className="font-body text-xs" style={{ color: 'var(--sg-text-muted)' }}>
@@ -265,8 +267,10 @@ export function HomePage() {
           </ul>
           <Link
             to="/entries"
-            className="mt-3 inline-block font-display font-700 text-sm"
+            className="mt-3 inline-block font-display font-700 text-sm transition-colors duration-150"
             style={{ color: 'var(--sg-teal)' }}
+            onMouseEnter={(e: MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.color = 'var(--sg-teal-dark)')}
+            onMouseLeave={(e: MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.color = 'var(--sg-teal)')}
           >
             View all history →
           </Link>

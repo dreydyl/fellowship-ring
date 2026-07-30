@@ -90,9 +90,14 @@ export function LoginPage() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                className="w-full rounded-xl px-4 py-3 text-sm font-body outline-none"
+                className="w-full rounded-xl px-4 py-3 text-sm font-body outline-none transition-all duration-200"
                 style={{ backgroundColor: 'var(--sg-surface)', border: '1px solid var(--sg-border)', color: 'var(--sg-text)' }}
                 {...register('email')}
+                onFocus={(e) => (e.target.style.borderColor = 'var(--sg-teal)')}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'var(--sg-border)';
+                  register('email').onBlur(e);
+                }}
               />
               {errors.email && (
                 <p className="mt-1.5 text-sm" style={{ color: '#d94f4f' }}>{errors.email.message}</p>
@@ -104,9 +109,14 @@ export function LoginPage() {
                 id="password"
                 type="password"
                 autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
-                className="w-full rounded-xl px-4 py-3 text-sm font-body outline-none"
+                className="w-full rounded-xl px-4 py-3 text-sm font-body outline-none transition-all duration-200"
                 style={{ backgroundColor: 'var(--sg-surface)', border: '1px solid var(--sg-border)', color: 'var(--sg-text)' }}
                 {...register('password')}
+                onFocus={(e) => (e.target.style.borderColor = 'var(--sg-teal)')}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'var(--sg-border)';
+                  register('password').onBlur(e);
+                }}
               />
               {errors.password && (
                 <p className="mt-1.5 text-sm" style={{ color: '#d94f4f' }}>{errors.password.message}</p>
@@ -121,8 +131,14 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="mt-4 w-full rounded-xl px-4 py-3 text-sm font-display font-700 text-white disabled:opacity-50"
+              className="mt-4 w-full rounded-xl px-4 py-3 text-sm font-display font-700 text-white disabled:opacity-50 transition-colors duration-200"
               style={{ backgroundColor: 'var(--sg-green)' }}
+              onMouseEnter={(e) => {
+                if (!isSubmitting) e.currentTarget.style.backgroundColor = 'var(--sg-green-dark)';
+              }}
+              onMouseLeave={(e) => {
+                if (!isSubmitting) e.currentTarget.style.backgroundColor = 'var(--sg-green)';
+              }}
             >
               {mode === 'signIn' ? 'Log In' : 'Sign Up'}
             </button>
@@ -135,8 +151,10 @@ export function LoginPage() {
               setFormError(null);
               setInfoMessage(null);
             }}
-            className="mt-4 w-full text-center text-sm font-display font-700"
+            className="mt-4 w-full text-center text-sm font-display font-700 transition-colors duration-200"
             style={{ color: 'var(--sg-teal)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--sg-teal-dark)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--sg-teal)')}
           >
             {mode === 'signIn'
               ? "Don't have an account? Sign up"

@@ -267,8 +267,10 @@ export function AccountPage() {
             <button
               type="button"
               onClick={() => setShowPasswordForm(true)}
-              className="rounded-xl px-4 py-2 text-sm font-display font-700"
+              className="rounded-xl px-4 py-2 text-sm font-display font-700 transition-colors duration-200"
               style={{ border: '1px solid var(--sg-border)', color: 'var(--sg-teal)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--sg-surface)')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
             >
               Change password
             </button>
@@ -301,10 +303,16 @@ export function AccountPage() {
                   type="button"
                   onClick={handleSavePassword}
                   disabled={!canSavePassword || pwSaving}
-                  className="rounded-xl px-4 py-2 text-sm font-display font-700 text-white"
+                  className="rounded-xl px-4 py-2 text-sm font-display font-700 text-white transition-colors duration-200"
                   style={{
                     backgroundColor: canSavePassword ? 'var(--sg-teal)' : '#a8d9d3',
                     cursor: canSavePassword && !pwSaving ? 'pointer' : 'not-allowed',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (canSavePassword && !pwSaving) e.currentTarget.style.backgroundColor = 'var(--sg-teal-dark)';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (canSavePassword && !pwSaving) e.currentTarget.style.backgroundColor = 'var(--sg-teal)';
                   }}
                 >
                   {pwSaved ? '✓ Saved' : pwSaving ? 'Saving…' : 'Save'}
@@ -318,8 +326,10 @@ export function AccountPage() {
                     setConfirmPw('');
                     setPwError(null);
                   }}
-                  className="text-sm font-display font-700"
+                  className="text-sm font-display font-700 transition-colors duration-200"
                   style={{ color: 'var(--sg-text-muted)' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--sg-text)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--sg-text-muted)')}
                 >
                   Cancel
                 </button>
@@ -344,6 +354,12 @@ export function AccountPage() {
                     color: selected ? color : 'var(--sg-text-muted)',
                     backgroundColor: selected ? `${color}18` : 'transparent',
                   }}
+                  onMouseEnter={(e) => {
+                    if (!selected) e.currentTarget.style.borderColor = color;
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!selected) e.currentTarget.style.borderColor = 'var(--sg-border)';
+                  }}
                 >
                   {n} · {severityLabels[n]}
                 </button>
@@ -360,8 +376,14 @@ export function AccountPage() {
               })
             }
             disabled={submitSelfReport.isPending}
-            className="rounded-xl px-4 py-2 text-sm font-display font-700 text-white disabled:opacity-50"
+            className="rounded-xl px-4 py-2 text-sm font-display font-700 text-white disabled:opacity-50 transition-colors duration-200"
             style={{ backgroundColor: 'var(--sg-green)' }}
+            onMouseEnter={(e) => {
+              if (!submitSelfReport.isPending) e.currentTarget.style.backgroundColor = 'var(--sg-green-dark)';
+            }}
+            onMouseLeave={(e) => {
+              if (!submitSelfReport.isPending) e.currentTarget.style.backgroundColor = 'var(--sg-green)';
+            }}
           >
             {submitSelfReport.isPending ? 'Saving…' : 'Save'}
           </button>
@@ -450,8 +472,10 @@ export function AccountPage() {
                 setGender(next);
                 updateGender.mutate(next);
               }}
-              className="w-full rounded-xl px-4 py-3 text-sm font-body outline-none"
+              className="w-full rounded-xl px-4 py-3 text-sm font-body outline-none transition-all duration-200"
               style={{ backgroundColor: 'var(--sg-surface)', border: '1px solid var(--sg-border)', color: 'var(--sg-text)' }}
+              onFocus={(e) => (e.target.style.borderColor = 'var(--sg-teal)')}
+              onBlur={(e) => (e.target.style.borderColor = 'var(--sg-border)')}
             >
               <option value="none">Prefer not to say</option>
               <option value="male">Male</option>

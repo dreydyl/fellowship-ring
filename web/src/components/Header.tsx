@@ -3,7 +3,7 @@
 // hamburger menu, and a sign-out action wired to useAuth().signOut().
 // See docs/DESIGN.md section 6 ("Component Library" — Header).
 
-import { useState } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../features/auth/AuthProvider';
 
@@ -27,6 +27,12 @@ function NavLink({ to, label, active }: { to: string; label: string; active: boo
       to={to}
       className="relative font-display font-600 text-sm transition-colors duration-150"
       style={{ color: active ? 'white' : 'rgba(255,255,255,0.72)' }}
+      onMouseEnter={(e: MouseEvent<HTMLAnchorElement>) => {
+        if (!active) e.currentTarget.style.color = 'white';
+      }}
+      onMouseLeave={(e: MouseEvent<HTMLAnchorElement>) => {
+        if (!active) e.currentTarget.style.color = 'rgba(255,255,255,0.72)';
+      }}
     >
       {label}
       {active && (
@@ -44,6 +50,8 @@ export function Header() {
   const navigate = useNavigate();
   const { session, signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
 
   const accountTo = session ? '/account' : '/login';
   const navItems = [...NAV_ITEMS, { label: 'Account', to: accountTo }];
@@ -51,6 +59,26 @@ export function Header() {
   function closeMobileMenu() {
     setMobileMenuOpen(false);
   }
+
+  // Outside-click-close: see docs/DESIGN.md section 8
+  // ("Pattern: Outside-click close for dropdowns"). The toggle button is
+  // excluded from the "outside" check so clicking it doesn't immediately
+  // reopen the menu it just closed.
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const handler = (e: globalThis.MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(target) &&
+        !mobileMenuButtonRef.current?.contains(target)
+      ) {
+        setMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [mobileMenuOpen]);
 
   async function handleSignOut() {
     closeMobileMenu();
@@ -83,6 +111,8 @@ export function Header() {
             onClick={handleSignOut}
             className="font-display font-600 text-sm transition-colors duration-150"
             style={{ color: 'rgba(255,255,255,0.72)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'white')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.72)')}
           >
             Sign out
           </button>
@@ -90,25 +120,27 @@ export function Header() {
 
         <button
           type="button"
+          ref={mobileMenuButtonRef}
           className="flex flex-col justify-center gap-1.5 sm:hidden"
           aria-label="Toggle menu"
           aria-expanded={mobileMenuOpen}
           onClick={() => setMobileMenuOpen((open) => !open)}
         >
           <span
-            className={`block h-0.5 w-5 rounded bg-white transition-all duration-200 ${mobileMenuOpen ? 'translate-y-1.5 rotate-45' : ''}`}
+            className={`block h-0.5 w-5 rounded bg-white transition-all duration-200 ${mobileMenuOpen ? 'translate-y-2 rotate-45' : ''}`}
           />
           <span
             className={`block h-0.5 w-5 rounded bg-white transition-all duration-200 ${mobileMenuOpen ? 'opacity-0' : ''}`}
           />
           <span
-            className={`block h-0.5 w-5 rounded bg-white transition-all duration-200 ${mobileMenuOpen ? '-translate-y-1.5 -rotate-45' : ''}`}
+            className={`block h-0.5 w-5 rounded bg-white transition-all duration-200 ${mobileMenuOpen ? '-translate-y-2 -rotate-45' : ''}`}
           />
         </button>
       </div>
 
       {mobileMenuOpen && (
         <div
+          ref={mobileMenuRef}
           className="sm:hidden"
           style={{
             backgroundColor: 'var(--sg-teal-dark)',

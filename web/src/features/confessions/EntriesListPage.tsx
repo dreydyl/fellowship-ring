@@ -57,7 +57,16 @@ export function EntriesListPage() {
 
           {entries && entries.length === 0 && (
             <p className="font-body text-sm" style={{ color: 'var(--sg-text-muted)' }}>
-              No entries yet. <Link to="/" style={{ color: 'var(--sg-teal)' }}>Write your first one.</Link>
+              No entries yet.{' '}
+              <Link
+                to="/"
+                className="transition-colors duration-150"
+                style={{ color: 'var(--sg-teal)' }}
+                onMouseEnter={(e: MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.color = 'var(--sg-teal-dark)')}
+                onMouseLeave={(e: MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.color = 'var(--sg-teal)')}
+              >
+                Write your first one.
+              </Link>
             </p>
           )}
 

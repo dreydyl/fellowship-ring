@@ -10,7 +10,7 @@
 // reading whatever was already persisted (plus a manual "Generate
 // reading plan" button, kept for entries created before this existed).
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { Header } from '../../components/Header';
 import { UrgeDots } from '../../components/UrgeDots';
@@ -245,8 +245,10 @@ export function EntryDetailPage() {
       <div className="mx-auto max-w-2xl px-4 py-8">
         <Link
           to="/entries"
-          className="flex items-center gap-1.5 mb-6 text-sm font-display font-700 transition-opacity hover:opacity-70"
+          className="flex items-center gap-1.5 mb-6 text-sm font-display font-700 transition-opacity duration-150"
           style={{ color: 'var(--sg-teal)' }}
+          onMouseEnter={(e: MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.opacity = '0.7')}
+          onMouseLeave={(e: MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.opacity = '1')}
         >
           <ChevronLeft />
           Back to history
@@ -359,8 +361,14 @@ export function EntryDetailPage() {
               type="button"
               onClick={() => generateReadingPlan.mutate(entryId)}
               disabled={generateReadingPlan.isPending}
-              className="mt-2 rounded-xl px-3 py-1.5 text-sm font-700 text-white disabled:opacity-50"
+              className="mt-2 rounded-xl px-3 py-1.5 text-sm font-700 text-white disabled:opacity-50 transition-colors duration-200"
               style={{ backgroundColor: READING_PLAN_ACCENT }}
+              onMouseEnter={(e) => {
+                if (!generateReadingPlan.isPending) e.currentTarget.style.filter = 'brightness(0.9)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.filter = 'none';
+              }}
             >
               {generateReadingPlan.isPending ? 'Generating…' : 'Generate reading plan'}
             </button>
@@ -401,8 +409,10 @@ export function EntryDetailPage() {
             <button
               type="button"
               onClick={() => setShowDevTools((prev) => !prev)}
-              className="text-xs font-display font-700 uppercase tracking-wider"
+              className="text-xs font-display font-700 uppercase tracking-wider transition-colors duration-150"
               style={{ color: 'var(--sg-text-muted)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--sg-text)')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--sg-text-muted)')}
             >
               {showDevTools ? '▾' : '▸'} Developer tools
             </button>
