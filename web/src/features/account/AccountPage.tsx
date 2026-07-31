@@ -5,7 +5,7 @@
 // ("Section / Field (Account)").
 
 import { useState, type ReactNode } from 'react';
-import { useAuth } from '../auth/AuthProvider';
+import { useAuth, getDisplayUsername } from '../auth/AuthProvider';
 import { Header } from '../../components/Header';
 import { severityColors, severityLabels } from '../../utils/severityColors';
 import { useProfile } from '../assessment/hooks/useProfile';
@@ -192,9 +192,9 @@ export function AccountPage() {
         </h1>
 
         <Section icon={<UserIcon />} title="Profile">
-          <Field label="Email">
+          <Field label="Username">
             <p className="text-sm font-body" style={{ color: 'var(--sg-text)' }}>
-              {user?.email}
+              {getDisplayUsername(user)}
             </p>
           </Field>
         </Section>

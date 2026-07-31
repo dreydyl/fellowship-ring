@@ -15,13 +15,40 @@ interface AuthContextValue {
   session: Session | null;
   user: User | null;
   loading: boolean;
-  signUp: (email: string, password: string) => Promise<{ error: string | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUp: (username: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (username: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   updatePassword: (currentPassword: string, newPassword: string) => Promise<{ error: string | null }>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+// Supabase Auth is still email/password under the hood, but the product
+// only asks users for a username (no real email required — important for
+// letting hackathon judges sign up instantly with any made-up name).
+// We synthesize a stable, valid-format email from the username so the
+// existing supabase-js email/password APIs keep working unchanged.
+const USERNAME_EMAIL_DOMAIN = 'users.fellowshipring.app';
+
+function usernameToEmail(username: string): string {
+  const sanitized = username
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, '-');
+  return `${sanitized}@${USERNAME_EMAIL_DOMAIN}`;
+}
+
+// Reads the username back for display: prefer the metadata we stored at
+// signup, falling back to stripping the synthetic domain off the email
+// (covers any account created before this field existed).
+export function getDisplayUsername(user: User | null): string {
+  if (!user) return '';
+  const metadataUsername = user.user_metadata?.username;
+  if (typeof metadataUsername === 'string' && metadataUsername.length > 0) {
+    return metadataUsername;
+  }
+  return user.email?.split('@')[0] ?? '';
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -58,13 +85,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  async function signUp(email: string, password: string) {
-    const { error } = await supabase.auth.signUp({ email, password });
+  async function signUp(username: string, password: string) {
+    const { error } = await supabase.auth.signUp({
+      email: usernameToEmail(username),
+      password,
+      options: { data: { username } },
+    });
     return { error: error?.message ?? null };
   }
 
-  async function signIn(email: string, password: string) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+  async function signIn(username: string, password: string) {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: usernameToEmail(username),
+      password,
+    });
     return { error: error?.message ?? null };
   }
 

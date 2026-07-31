@@ -26,6 +26,12 @@ additional_redirect_urls = ["http://localhost:5173"]
 jwt_expiry = 3600
 enable_signup = true
 
+[auth.email]
+# Judges/users sign up with a username (see web/src/features/auth), which
+# is turned into a synthetic, non-deliverable email under the hood — so
+# there's no real inbox to confirm. Auto-confirm on signup.
+enable_confirmations = false
+
 [storage]
 enabled = true
 

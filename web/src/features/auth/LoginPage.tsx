@@ -14,7 +14,11 @@ import { Header } from '../../components/Header';
 import { useAuth } from './AuthProvider';
 
 const credentialsSchema = z.object({
-  email: z.string().email('Enter a valid email address'),
+  username: z
+    .string()
+    .min(3, 'Username must be at least 3 characters')
+    .max(32, 'Username must be at most 32 characters')
+    .regex(/^[a-zA-Z0-9._-]+$/, 'Only letters, numbers, ".", "_", and "-" are allowed'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
@@ -39,7 +43,6 @@ export function LoginPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
   const [formError, setFormError] = useState<string | null>(null);
-  const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
   const {
     register,
@@ -51,21 +54,14 @@ export function LoginPage() {
 
   async function onSubmit(values: Credentials) {
     setFormError(null);
-    setInfoMessage(null);
 
     const { error } =
       mode === 'signIn'
-        ? await signIn(values.email, values.password)
-        : await signUp(values.email, values.password);
+        ? await signIn(values.username, values.password)
+        : await signUp(values.username, values.password);
 
     if (error) {
       setFormError(error);
-      return;
-    }
-
-    if (mode === 'signUp') {
-      setInfoMessage('Account created. Check your email to confirm, then sign in.');
-      setMode('signIn');
       return;
     }
 
@@ -85,22 +81,22 @@ export function LoginPage() {
           style={{ backgroundColor: 'white', border: '1px solid var(--sg-border)' }}
         >
           <form onSubmit={handleSubmit(onSubmit)}>
-            <Field label="Email">
+            <Field label="Username">
               <input
-                id="email"
-                type="email"
-                autoComplete="email"
+                id="username"
+                type="text"
+                autoComplete="username"
                 className="w-full rounded-xl px-4 py-3 text-sm font-body outline-none transition-all duration-200"
                 style={{ backgroundColor: 'var(--sg-surface)', border: '1px solid var(--sg-border)', color: 'var(--sg-text)' }}
-                {...register('email')}
+                {...register('username')}
                 onFocus={(e) => (e.target.style.borderColor = 'var(--sg-teal)')}
                 onBlur={(e) => {
                   e.target.style.borderColor = 'var(--sg-border)';
-                  register('email').onBlur(e);
+                  register('username').onBlur(e);
                 }}
               />
-              {errors.email && (
-                <p className="mt-1.5 text-sm" style={{ color: '#d94f4f' }}>{errors.email.message}</p>
+              {errors.username && (
+                <p className="mt-1.5 text-sm" style={{ color: '#d94f4f' }}>{errors.username.message}</p>
               )}
             </Field>
 
@@ -124,9 +120,6 @@ export function LoginPage() {
             </Field>
 
             {formError && <p className="mt-3 text-sm" style={{ color: '#d94f4f' }}>{formError}</p>}
-            {infoMessage && (
-              <p className="mt-3 text-sm" style={{ color: 'var(--sg-green)' }}>{infoMessage}</p>
-            )}
 
             <button
               type="submit"
@@ -149,7 +142,6 @@ export function LoginPage() {
             onClick={() => {
               setMode(mode === 'signIn' ? 'signUp' : 'signIn');
               setFormError(null);
-              setInfoMessage(null);
             }}
             className="mt-4 w-full text-center text-sm font-display font-700 transition-colors duration-200"
             style={{ color: 'var(--sg-teal)' }}
