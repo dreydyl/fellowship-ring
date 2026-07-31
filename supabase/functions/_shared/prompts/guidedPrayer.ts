@@ -12,7 +12,7 @@
 import type { ConfessionContext } from '../confessionContext.ts';
 import type { GlooMessage } from '../glooClient.ts';
 import { getRelationalTerms } from './pronouns.ts';
-import { formatEntryHistory, formatSelfReportedSeverity } from './formatting.ts';
+import { formatEntryHistory, formatAddictionSeverity } from './formatting.ts';
 import { PERSONA_DESCRIPTION } from './persona.ts';
 
 export interface GlooPromptRequest {
@@ -51,8 +51,8 @@ ${tierInstructions(desperationLevel)} Let it be in first person as if the user i
 These were their last 3 confessions:
 ${formatEntryHistory(ctx.last3Entries)}
 
-Their self-reported addiction severity:
-${formatSelfReportedSeverity(ctx.selfReportedSeverity)}`;
+Their current addiction severity:
+${formatAddictionSeverity(ctx.addictionSeverity)}`;
 
   return {
     instructions,

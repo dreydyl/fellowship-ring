@@ -22,12 +22,16 @@ import { pendingSeverityRecommendationKey } from './usePendingSeverityRecommenda
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 
 export type GuidanceTarget = 'desperation' | 'readingPlan' | 'motivational' | 'severity' | 'guidedPrayer';
-export type GuidanceStatus = 'idle' | 'loading' | 'success' | 'error';
+// 'disregarded' means the server determined the entry isn't actually a
+// confession/journal entry (desperationLevel === 0) and skipped
+// generating this card entirely — see `message` for the fallback copy.
+export type GuidanceStatus = 'idle' | 'loading' | 'success' | 'error' | 'disregarded';
 
 export interface GuidanceCardState<T> {
   status: GuidanceStatus;
   data?: T;
   error?: string;
+  message?: string;
 }
 
 export interface DesperationResult {
@@ -59,6 +63,7 @@ interface GuidanceEvent {
   status: GuidanceStatus;
   data?: unknown;
   error?: string;
+  message?: string;
 }
 
 export function useEntryGuidanceOrchestrator() {
@@ -82,7 +87,12 @@ export function useEntryGuidanceOrchestrator() {
         if (runId !== runIdRef.current) return;
         setState((prev) => ({
           ...prev,
-          [event.target]: { status: event.status, data: event.data, error: event.error },
+          [event.target]: {
+            status: event.status,
+            data: event.data,
+            error: event.error,
+            message: event.message,
+          },
         }));
 
         if (event.status === 'success') {

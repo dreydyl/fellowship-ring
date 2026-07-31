@@ -4,9 +4,14 @@
 import type { ConfessionEntrySummary, ConfessionContext } from '../confessionContext.ts';
 
 export function formatEntryHistory(entries: ConfessionEntrySummary[]): string {
-  if (!entries.length) return 'No prior confessions on record.';
+  // Entries with desperationLevel === 0 were determined to have
+  // nothing to do with confession/recovery (see assess-desperation /
+  // generate-entry-guidance) — leave them out of the history so they
+  // don't get treated as real prior confessions in later prompts.
+  const relevantEntries = entries.filter((entry) => entry.desperationLevel !== 0);
+  if (!relevantEntries.length) return 'No prior confessions on record.';
 
-  return entries
+  return relevantEntries
     .map(
       (entry, index) =>
         `${index + 1}. [${entry.createdAt}] (urge intensity: ${entry.urgeIntensity}) ${entry.content}`,
@@ -14,9 +19,10 @@ export function formatEntryHistory(entries: ConfessionEntrySummary[]): string {
     .join('\n');
 }
 
-export function formatSelfReportedSeverity(
-  severity: ConfessionContext['selfReportedSeverity'],
+export function formatAddictionSeverity(
+  severity: ConfessionContext['addictionSeverity'],
 ): string {
-  if (!severity) return 'Not yet self-reported.';
-  return `${severity.level} (self-reported since ${severity.since})`;
+  if (!severity) return 'Not yet assessed.';
+  const sourceLabel = severity.source === 'ai' ? 'AI-recommended, accepted' : 'self-reported';
+  return `${severity.level} (${sourceLabel} since ${severity.since})`;
 }

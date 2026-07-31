@@ -1,17 +1,18 @@
 // Edge function: generate-entry-guidance
 //
 // Entry-save orchestrator. Builds the shared ConfessionContext exactly
-// once, then fans out across all of the Gloo AI generation tasks that
-// normally each build their own context:
-//   - assess-desperation
-//   - generate-reading-plan
-//   - generate-motivational
-//   - recommend-severity
-// via Promise.allSettled, so a slow/failed task doesn't block the
-// others. As soon as assess-desperation resolves successfully,
-// generate-guided-prayer is kicked off alongside the rest using that
-// score (it is not part of the initial allSettled batch — it depends
-// on one of that batch's results).
+// once, then runs assess-desperation first, since every other task
+// depends on its result:
+//   - desperationLevel === 0 means the entry isn't actually a
+//     confession/journal entry about pornography recovery. Rather than
+//     reinterpreting or forcing unrelated text into the confession
+//     workflow, none of the other Gloo AI tasks are run at all — the
+//     client gets a "disregarded" event with a fallback message for
+//     each of them instead of fabricated guidance.
+//   - desperationLevel > 0 fans out across the remaining tasks
+//     (generate-reading-plan, generate-motivational, recommend-severity)
+//     via Promise.allSettled, so a slow/failed task doesn't block the
+//     others, then kicks off generate-guided-prayer using that score.
 //
 // Results are streamed back as newline-delimited JSON so the client can
 // drive independent per-card loading states instead of waiting for the
@@ -19,6 +20,7 @@
 //   { "target": "desperation", "status": "loading" }
 //   { "target": "desperation", "status": "success", "data": { "desperationLevel": 6 } }
 //   { "target": "desperation", "status": "error", "error": "..." }
+//   { "target": "motivational", "status": "disregarded", "message": "..." }
 //
 // Targets: desperation | readingPlan | motivational | severity | guidedPrayer
 //
@@ -32,8 +34,16 @@ import { runRecommendSeverity } from '../_shared/tasks/recommendSeverity.ts';
 import { runGenerateMotivational } from '../_shared/tasks/generateMotivational.ts';
 import { runGenerateReadingPlan } from '../_shared/tasks/generateReadingPlan.ts';
 import { runGenerateGuidedPrayer } from '../_shared/tasks/generateGuidedPrayer.ts';
+import { DISREGARDED_MESSAGE } from '../_shared/guidanceFallback.ts';
 
 type GuidanceTarget = 'desperation' | 'readingPlan' | 'motivational' | 'severity' | 'guidedPrayer';
+
+const DOWNSTREAM_TARGETS: readonly GuidanceTarget[] = [
+  'readingPlan',
+  'motivational',
+  'severity',
+  'guidedPrayer',
+];
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown error';
@@ -88,20 +98,48 @@ Deno.serve(async (req: Request) => {
       emit('motivational', { status: 'loading' });
       emit('severity', { status: 'loading' });
 
-      // assess-desperation -> generate-guided-prayer chain. Guided
-      // prayer only starts once desperation resolves, but runs
-      // concurrently with the other three tasks below.
-      const desperationChain = (async () => {
-        let desperationLevel: number;
-        try {
-          desperationLevel = await runAssessDesperation(ctx);
-          emit('desperation', { status: 'success', data: { desperationLevel } });
-        } catch (error) {
-          emit('desperation', { status: 'error', error: errorMessage(error) });
-          return;
-        }
+      let desperationLevel: number;
+      try {
+        desperationLevel = await runAssessDesperation(ctx);
+        emit('desperation', { status: 'success', data: { desperationLevel } });
+      } catch (error) {
+        emit('desperation', { status: 'error', error: errorMessage(error) });
+        DOWNSTREAM_TARGETS.forEach((target) =>
+          emit(target, { status: 'error', error: 'Skipped — could not assess this entry.' }),
+        );
+        controller.close();
+        return;
+      }
 
-        emit('guidedPrayer', { status: 'loading' });
+      // Persist the assessed level onto the entry itself so future
+      // entries' formatEntryHistory can exclude it if it's a 0 (see
+      // migration 0009). Best-effort — a failure here shouldn't block
+      // the rest of the guidance pipeline.
+      const { error: persistError } = await supabase
+        .from('confession_entries')
+        .update({ desperation_level: desperationLevel })
+        .eq('id', confessionEntryId);
+      if (persistError) {
+        console.error('Failed to persist desperation_level:', persistError);
+      }
+
+      // A desperation level of 0 means Gloo AI determined this entry
+      // isn't actually a confession/journal entry about pornography
+      // recovery at all. Fail gracefully instead of reinterpreting or
+      // forcing unrelated text into the confession workflow: skip every
+      // downstream task entirely and hand the client a fallback message
+      // instead of fabricated guidance.
+      if (desperationLevel === 0) {
+        DOWNSTREAM_TARGETS.forEach((target) =>
+          emit(target, { status: 'disregarded', message: DISREGARDED_MESSAGE }),
+        );
+        controller.close();
+        return;
+      }
+
+      emit('guidedPrayer', { status: 'loading' });
+
+      const guidedPrayerTask = (async () => {
         try {
           const guidedPrayer = await runGenerateGuidedPrayer(
             supabase,
@@ -130,7 +168,7 @@ Deno.serve(async (req: Request) => {
         )
         .catch((error) => emit('severity', { status: 'error', error: errorMessage(error) }));
 
-      await Promise.allSettled([desperationChain, readingPlanTask, motivationalTask, severityTask]);
+      await Promise.allSettled([guidedPrayerTask, readingPlanTask, motivationalTask, severityTask]);
 
       controller.close();
     },

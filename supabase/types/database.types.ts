@@ -25,6 +25,7 @@ export type Database = {
           user_id: string;
           content: string;
           urge_intensity: number;
+          desperation_level: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -33,6 +34,7 @@ export type Database = {
           user_id: string;
           content: string;
           urge_intensity?: number;
+          desperation_level?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -41,6 +43,7 @@ export type Database = {
           user_id?: string;
           content?: string;
           urge_intensity?: number;
+          desperation_level?: number | null;
           created_at?: string;
           updated_at?: string;
         };

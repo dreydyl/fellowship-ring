@@ -11,6 +11,7 @@ export interface ConfessionEntrySummary {
   content: string;
   urgeIntensity: number;
   createdAt: string;
+  desperationLevel: number | null;
 }
 
 export interface ConfessionContext {
@@ -23,7 +24,7 @@ export interface ConfessionContext {
   last7Entries: ConfessionEntrySummary[];
   last3Entries: ConfessionEntrySummary[];
   gender: 'brother' | 'sister' | null;
-  selfReportedSeverity: { level: number; since: string } | null;
+  addictionSeverity: { level: number; since: string; source: 'self_report' | 'ai' } | null;
 }
 
 /**
@@ -50,7 +51,7 @@ export async function buildConfessionContext(
 
   const { data: recentEntries, error: recentError } = await supabase
     .from('confession_entries')
-    .select('content, urge_intensity, created_at')
+    .select('content, urge_intensity, created_at, desperation_level')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(7);
@@ -61,6 +62,7 @@ export async function buildConfessionContext(
     content: row.content,
     urgeIntensity: row.urge_intensity,
     createdAt: row.created_at,
+    desperationLevel: row.desperation_level,
   }));
   const last3Entries = last7Entries.slice(0, 3);
 
@@ -75,19 +77,22 @@ export async function buildConfessionContext(
   const gender: ConfessionContext['gender'] =
     profile?.gender === 'male' ? 'brother' : profile?.gender === 'female' ? 'sister' : null;
 
-  const { data: latestSelfReport, error: selfReportError } = await supabase
+  const { data: latestAssessment, error: assessmentError } = await supabase
     .from('addiction_assessments')
-    .select('severity_level, created_at')
+    .select('severity_level, source, created_at')
     .eq('user_id', userId)
-    .eq('source', 'self_report')
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  if (selfReportError) throw selfReportError;
+  if (assessmentError) throw assessmentError;
 
-  const selfReportedSeverity = latestSelfReport
-    ? { level: latestSelfReport.severity_level, since: latestSelfReport.created_at }
+  const addictionSeverity = latestAssessment
+    ? {
+        level: latestAssessment.severity_level,
+        since: latestAssessment.created_at,
+        source: latestAssessment.source,
+      }
     : null;
 
   return {
@@ -100,6 +105,6 @@ export async function buildConfessionContext(
     last7Entries,
     last3Entries,
     gender,
-    selfReportedSeverity,
+    addictionSeverity,
   };
 }

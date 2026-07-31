@@ -19,7 +19,7 @@
 import type { ConfessionContext } from '../confessionContext.ts';
 import type { GlooMessage } from '../glooClient.ts';
 import { getRelationalTerms } from './pronouns.ts';
-import { formatEntryHistory, formatSelfReportedSeverity } from './formatting.ts';
+import { formatEntryHistory, formatAddictionSeverity } from './formatting.ts';
 
 export interface GlooPromptRequest {
   instructions: string;
@@ -55,8 +55,8 @@ text — only references and summaries.`;
 These were their last 7 confessions:
 ${formatEntryHistory(ctx.last7Entries)}
 
-Their self-reported addiction severity:
-${formatSelfReportedSeverity(ctx.selfReportedSeverity)}`;
+Their current addiction severity:
+${formatAddictionSeverity(ctx.addictionSeverity)}`;
 
   return {
     instructions,

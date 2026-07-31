@@ -196,6 +196,52 @@ function SeverityBannerShell({ children }: { children: ReactNode }) {
   );
 }
 
+// Shown in place of the severity/motivational/reading-plan/guided-prayer
+// cards when the orchestrator reports desperationLevel 0 — the entry
+// wasn't actually a confession/journal entry, so nothing was generated
+// for it. Fails gracefully instead of showing fabricated guidance for
+// unrelated text; see docs/DESIGN.md's grace-filled, non-judgmental tone.
+function DisregardedGuidance({ message }: { message?: string }) {
+  return (
+    <div
+      className="rounded-3xl p-5 mb-4"
+      style={{ backgroundColor: 'white', border: '1px solid var(--sg-border)' }}
+    >
+      <p className="font-display font-700 text-base mb-2" style={{ color: 'var(--sg-text)' }}>
+        No reflection generated.
+      </p>
+      <p className="text-sm mb-4" style={{ color: 'var(--sg-text-muted)' }}>
+        {message ??
+          "This entry doesn't appear to be a confession or journal entry related to pornography recovery. Please write about a recent struggle, temptation, relapse, victory, or recovery experience."}
+      </p>
+      <div
+        className="rounded-2xl p-4 mb-4"
+        style={{ backgroundColor: 'rgba(43,191,176,0.06)', border: '1px solid var(--sg-border)' }}
+      >
+        <p
+          className="text-xs font-display font-700 uppercase tracking-wider mb-2"
+          style={{ color: 'var(--sg-teal)' }}
+        >
+          A helpful confession usually includes
+        </p>
+        <ul className="text-sm list-disc pl-5 space-y-1" style={{ color: 'var(--sg-text-muted)' }}>
+          <li>What happened</li>
+          <li>What triggered it</li>
+          <li>How you responded</li>
+          <li>What you want to do differently next time</li>
+        </ul>
+      </div>
+      <Link
+        to="/"
+        className="inline-block rounded-xl px-4 py-2 text-sm font-700 text-white transition-colors duration-200"
+        style={{ backgroundColor: 'var(--sg-teal)' }}
+      >
+        Start a new confession
+      </Link>
+    </div>
+  );
+}
+
 export function EntryDetailPage() {
   const { entryId } = useParams<{ entryId: string }>();
   const location = useLocation();
@@ -242,6 +288,11 @@ export function EntryDetailPage() {
 
   const guidedPrayerStatus: GuidanceStatus = guidedPrayer ? 'success' : guidance.guidedPrayer.status;
   const effectiveGuidedPrayer = guidedPrayer ?? guidance.guidedPrayer.data;
+
+  // All four downstream cards are put into 'disregarded' together (see
+  // generate-entry-guidance), so checking any one of them tells us the
+  // whole batch was skipped because desperationLevel came back 0.
+  const isDisregarded = guidance.motivational.status === 'disregarded';
 
   // The severity banner reflects the user's *current* standing, not a
   // per-entry history (that lives in the Account page's severity
@@ -305,115 +356,121 @@ export function EntryDetailPage() {
           <div className="flex-1 h-px" style={{ backgroundColor: 'var(--sg-border)' }} />
         </div>
 
-        {isMostRecentEntry &&
-          (entryAssessment ? (
-            <SeverityBanner
-              score={entryAssessment.severity_level}
-              sourceLabel={
-                entryAssessment.source === 'ai' ? 'Accepted AI recommendation' : 'Your own report'
-              }
-            />
-          ) : pendingSeverityRecommendation.data && entryId ? (
-            <SeverityBanner
-              score={pendingSeverityRecommendation.data.recommendedSeverity}
-              sourceLabel="AI-recommended — not yet recorded"
-            >
-              <div className="mt-3">
-                <SeverityRecommendationCard
-                  confessionEntryId={entryId}
-                  recommendedSeverity={pendingSeverityRecommendation.data.recommendedSeverity}
-                  onDismiss={pendingSeverityRecommendation.clear}
+        {isDisregarded ? (
+          <DisregardedGuidance message={guidance.motivational.message} />
+        ) : (
+          <>
+            {isMostRecentEntry &&
+              (entryAssessment ? (
+                <SeverityBanner
+                  score={entryAssessment.severity_level}
+                  sourceLabel={
+                    entryAssessment.source === 'ai' ? 'Accepted AI recommendation' : 'Your own report'
+                  }
                 />
-              </div>
-            </SeverityBanner>
-          ) : (
-            <SeverityBannerShell>
-              {guidance.severity.status === 'loading' && (
-                <p className="text-sm" style={{ color: 'var(--sg-text-muted)' }}>
-                  Assessing severity…
-                </p>
-              )}
-              {guidance.severity.status === 'error' && (
-                <p className="text-sm" style={{ color: '#d94f4f' }}>
-                  {guidance.severity.error ?? 'Something went wrong.'}
-                </p>
-              )}
-              {guidance.severity.status === 'idle' && (
-                <p className="text-sm" style={{ color: 'var(--sg-text-muted)' }}>
-                  Severity assessment not generated yet.
-                </p>
-              )}
-            </SeverityBannerShell>
-          ))}
+              ) : pendingSeverityRecommendation.data && entryId ? (
+                <SeverityBanner
+                  score={pendingSeverityRecommendation.data.recommendedSeverity}
+                  sourceLabel="AI-recommended — not yet recorded"
+                >
+                  <div className="mt-3">
+                    <SeverityRecommendationCard
+                      confessionEntryId={entryId}
+                      recommendedSeverity={pendingSeverityRecommendation.data.recommendedSeverity}
+                      onDismiss={pendingSeverityRecommendation.clear}
+                    />
+                  </div>
+                </SeverityBanner>
+              ) : (
+                <SeverityBannerShell>
+                  {guidance.severity.status === 'loading' && (
+                    <p className="text-sm" style={{ color: 'var(--sg-text-muted)' }}>
+                      Assessing severity…
+                    </p>
+                  )}
+                  {guidance.severity.status === 'error' && (
+                    <p className="text-sm" style={{ color: '#d94f4f' }}>
+                      {guidance.severity.error ?? 'Something went wrong.'}
+                    </p>
+                  )}
+                  {guidance.severity.status === 'idle' && (
+                    <p className="text-sm" style={{ color: 'var(--sg-text-muted)' }}>
+                      Severity assessment not generated yet.
+                    </p>
+                  )}
+                </SeverityBannerShell>
+              ))}
 
-        <GuidanceCard
-          icon={<SparkleIcon color="var(--sg-teal)" />}
-          label="An encouraging word"
-          accentColor="var(--sg-teal)"
-        >
-          <GuidanceStatusContent status={motivationalStatus} error={guidance.motivational.error}>
-            {effectiveMotivational && (
-              <p className="whitespace-pre-wrap font-body" style={{ color: 'var(--sg-text)' }}>
-                {effectiveMotivational.content}
-              </p>
-            )}
-          </GuidanceStatusContent>
-        </GuidanceCard>
-
-        <GuidanceCard
-          icon={<BookIcon color={READING_PLAN_ACCENT} />}
-          label="Personalized reading plan"
-          accentColor={READING_PLAN_ACCENT}
-        >
-          <GuidanceStatusContent status={readingPlanStatus} error={guidance.readingPlan.error}>
-            {effectiveReadingPlan && <ReadingPlanCard plan={effectiveReadingPlan} />}
-          </GuidanceStatusContent>
-
-          {readingPlanStatus === 'idle' && entryId && (
-            <button
-              type="button"
-              onClick={() => generateReadingPlan.mutate(entryId)}
-              disabled={generateReadingPlan.isPending}
-              className="mt-2 rounded-xl px-3 py-1.5 text-sm font-700 text-white disabled:opacity-50 transition-colors duration-200"
-              style={{ backgroundColor: READING_PLAN_ACCENT }}
-              onMouseEnter={(e) => {
-                if (!generateReadingPlan.isPending) e.currentTarget.style.filter = 'brightness(0.9)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.filter = 'none';
-              }}
+            <GuidanceCard
+              icon={<SparkleIcon color="var(--sg-teal)" />}
+              label="An encouraging word"
+              accentColor="var(--sg-teal)"
             >
-              {generateReadingPlan.isPending ? 'Generating…' : 'Generate reading plan'}
-            </button>
-          )}
+              <GuidanceStatusContent status={motivationalStatus} error={guidance.motivational.error}>
+                {effectiveMotivational && (
+                  <p className="whitespace-pre-wrap font-body" style={{ color: 'var(--sg-text)' }}>
+                    {effectiveMotivational.content}
+                  </p>
+                )}
+              </GuidanceStatusContent>
+            </GuidanceCard>
 
-          {generateReadingPlan.isError && (
-            <p className="mt-2 text-sm" style={{ color: '#d94f4f' }}>
-              {generateReadingPlan.error instanceof Error
-                ? generateReadingPlan.error.message
-                : 'Failed to generate reading plan.'}
-            </p>
-          )}
-        </GuidanceCard>
+            <GuidanceCard
+              icon={<BookIcon color={READING_PLAN_ACCENT} />}
+              label="Personalized reading plan"
+              accentColor={READING_PLAN_ACCENT}
+            >
+              <GuidanceStatusContent status={readingPlanStatus} error={guidance.readingPlan.error}>
+                {effectiveReadingPlan && <ReadingPlanCard plan={effectiveReadingPlan} />}
+              </GuidanceStatusContent>
 
-        <GuidanceCard
-          icon={<PrayerIcon color="var(--sg-green)" />}
-          label="Guided prayer"
-          accentColor="var(--sg-green)"
-        >
-          <GuidanceStatusContent status={guidedPrayerStatus} error={guidance.guidedPrayer.error}>
-            {effectiveGuidedPrayer && (
-              <div
-                className="rounded-2xl p-4"
-                style={{ backgroundColor: 'rgba(61,191,126,0.08)', border: '1px solid rgba(61,191,126,0.25)' }}
-              >
-                <p className="whitespace-pre-wrap font-body" style={{ color: 'var(--sg-text)' }}>
-                  {effectiveGuidedPrayer.content}
+              {readingPlanStatus === 'idle' && entryId && (
+                <button
+                  type="button"
+                  onClick={() => generateReadingPlan.mutate(entryId)}
+                  disabled={generateReadingPlan.isPending}
+                  className="mt-2 rounded-xl px-3 py-1.5 text-sm font-700 text-white disabled:opacity-50 transition-colors duration-200"
+                  style={{ backgroundColor: READING_PLAN_ACCENT }}
+                  onMouseEnter={(e) => {
+                    if (!generateReadingPlan.isPending) e.currentTarget.style.filter = 'brightness(0.9)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.filter = 'none';
+                  }}
+                >
+                  {generateReadingPlan.isPending ? 'Generating…' : 'Generate reading plan'}
+                </button>
+              )}
+
+              {generateReadingPlan.isError && (
+                <p className="mt-2 text-sm" style={{ color: '#d94f4f' }}>
+                  {generateReadingPlan.error instanceof Error
+                    ? generateReadingPlan.error.message
+                    : 'Failed to generate reading plan.'}
                 </p>
-              </div>
-            )}
-          </GuidanceStatusContent>
-        </GuidanceCard>
+              )}
+            </GuidanceCard>
+
+            <GuidanceCard
+              icon={<PrayerIcon color="var(--sg-green)" />}
+              label="Guided prayer"
+              accentColor="var(--sg-green)"
+            >
+              <GuidanceStatusContent status={guidedPrayerStatus} error={guidance.guidedPrayer.error}>
+                {effectiveGuidedPrayer && (
+                  <div
+                    className="rounded-2xl p-4"
+                    style={{ backgroundColor: 'rgba(61,191,126,0.08)', border: '1px solid rgba(61,191,126,0.25)' }}
+                  >
+                    <p className="whitespace-pre-wrap font-body" style={{ color: 'var(--sg-text)' }}>
+                      {effectiveGuidedPrayer.content}
+                    </p>
+                  </div>
+                )}
+              </GuidanceStatusContent>
+            </GuidanceCard>
+          </>
+        )}
 
         {/* TEMPORARY: manual testing aid for the Gloo AI prompt builders.
             Remove this section (and useDebugPrompts) once prompt tuning is done. */}

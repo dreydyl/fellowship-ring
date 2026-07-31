@@ -6,7 +6,7 @@
 import type { ConfessionContext } from '../confessionContext.ts';
 import type { GlooMessage } from '../glooClient.ts';
 import { getRelationalTerms } from './pronouns.ts';
-import { formatEntryHistory, formatSelfReportedSeverity } from './formatting.ts';
+import { formatEntryHistory, formatAddictionSeverity } from './formatting.ts';
 
 export interface GlooPromptRequest {
   instructions: string;
@@ -32,8 +32,8 @@ On a scale of 1-5, how severe is their addiction? Respond with ONLY the bare num
 These were their last 7 confessions:
 ${formatEntryHistory(ctx.last7Entries)}
 
-Their self-reported addiction severity:
-${formatSelfReportedSeverity(ctx.selfReportedSeverity)}`;
+Their current addiction severity:
+${formatAddictionSeverity(ctx.addictionSeverity)}`;
 
   return {
     instructions,

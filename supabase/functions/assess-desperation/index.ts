@@ -1,10 +1,11 @@
 // Edge function: assess-desperation
 //
 // Given a confession_entry_id, asks Gloo AI (Responses API) how
-// desperate the user appears right now (1-10). This is an ephemeral
-// signal used to select the guided-prayer tier — it is NOT persisted
-// anywhere; the caller is responsible for passing it into
-// generate-guided-prayer.
+// desperate the user appears right now (0-10, where 0 means the entry
+// isn't actually a confession/journal entry about pornography recovery
+// at all). This is an ephemeral signal used to select the guided-prayer
+// tier — it is NOT persisted anywhere; the caller is responsible for
+// passing it into generate-guided-prayer.
 //
 // Request body: { confessionEntryId: string }
 // Requires an Authorization header with the caller's Supabase JWT.

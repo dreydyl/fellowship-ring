@@ -6,6 +6,7 @@
 import { createSupabaseAdminClient } from '../supabaseAdmin.ts';
 import { callGlooCompletion } from '../glooClient.ts';
 import { buildMotivationalPrompt } from '../prompts/motivational.ts';
+import { CRISIS_MESSAGE, isCrisisGuardrailResponse } from '../guidanceFallback.ts';
 import type { ConfessionContext } from '../confessionContext.ts';
 
 type AdminClient = ReturnType<typeof createSupabaseAdminClient>;
@@ -23,7 +24,13 @@ export async function runGenerateMotivational(
   confessionEntryId: string,
   ctx: ConfessionContext,
 ): Promise<GuidanceRecordResult> {
-  const content = (await callGlooCompletion(buildMotivationalPrompt(ctx))).trim();
+  const rawContent = (await callGlooCompletion(buildMotivationalPrompt(ctx))).trim();
+
+  // Gloo's Completions V2 guardrails can silently replace our
+  // requested affirmation with a generic crisis-resources template
+  // (see guidanceFallback.ts). Swap in our own on-brand default rather
+  // than storing/displaying that mismatched boilerplate.
+  const content = isCrisisGuardrailResponse(rawContent) ? CRISIS_MESSAGE : rawContent;
 
   const { data, error } = await supabase
     .from('guidance_records')
