@@ -6,7 +6,7 @@
 // Bible passages, and inserts the result into reading_plans.
 //
 // plan_json is now versioned. v2 shape:
-//   { version: 2, passages: [{ number, reference, summary }] }
+//   { version: 2, passages: [{ number, reference }] }
 // (v1 rows from before this rewrite only had `{ version: 1, passages:
 // [{ reference }] }` — the frontend types tolerate both.)
 //

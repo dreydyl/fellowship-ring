@@ -32,33 +32,84 @@ import { SeverityRecommendationCard } from '../guidance/SeverityRecommendationCa
 import { useDebugPrompts } from './hooks/useDebugPrompts';
 
 // Consistent wrapper for each piece of AI guidance content on this page.
-// See docs/DESIGN.md section 6 ("GuidanceCard").
+// See docs/DESIGN.md section 6 ("GuidanceCard"). When `collapsible` is set,
+// the ENTIRE card becomes clickable to toggle its contents, starting
+// collapsed unless `defaultOpen` is set. It's a div with role="button"
+// (not a real <button>) because children (e.g. the reading plan's step
+// accordion) contain their own interactive buttons, and a <button> can't
+// contain nested interactive elements — clicks inside the opened content
+// stop propagation so they don't also toggle the card closed.
 function GuidanceCard({
   icon,
   label,
   accentColor,
   children,
+  collapsible = false,
+  defaultOpen = false,
 }: {
   icon: ReactNode;
   label: string;
   accentColor: string;
   children: ReactNode;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
 }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const isOpen = collapsible ? open : true;
+
+  const toggle = () => setOpen((prev) => !prev);
+
+  const header = (
+    <>
+      {icon}
+      <span
+        className="text-xs font-display font-700 uppercase tracking-wider"
+        style={{ color: accentColor }}
+      >
+        {label}
+      </span>
+    </>
+  );
+
   return (
     <div
+      role={collapsible ? 'button' : undefined}
+      tabIndex={collapsible ? 0 : undefined}
+      aria-expanded={collapsible ? isOpen : undefined}
+      onClick={collapsible ? toggle : undefined}
+      onKeyDown={
+        collapsible
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggle();
+              }
+            }
+          : undefined
+      }
       className="rounded-3xl p-5 mb-4 shadow-sm"
-      style={{ backgroundColor: 'white', border: '1px solid var(--sg-border)' }}
+      style={{
+        backgroundColor: 'white',
+        border: '1px solid var(--sg-border)',
+        cursor: collapsible ? 'pointer' : undefined,
+      }}
     >
-      <div className="flex items-center gap-2 mb-3">
-        {icon}
-        <span
-          className="text-xs font-display font-700 uppercase tracking-wider"
-          style={{ color: accentColor }}
+      {collapsible ? (
+        <div className="flex w-full items-center justify-between gap-2">
+          <span className="flex items-center gap-2">{header}</span>
+          <ChevronDownIcon open={isOpen} color={accentColor} />
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 mb-3">{header}</div>
+      )}
+      {isOpen && (
+        <div
+          className={collapsible ? 'mt-3' : undefined}
+          onClick={collapsible ? (e) => e.stopPropagation() : undefined}
         >
-          {label}
-        </span>
-      </div>
-      {children}
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -133,6 +184,28 @@ function ChevronLeft() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M15 18l-6-6 6-6" />
+    </svg>
+  );
+}
+
+function ChevronDownIcon({ open, color }: { open: boolean; color: string }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{
+        flexShrink: 0,
+        transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
+        transition: 'transform 150ms ease',
+      }}
+    >
+      <path d="M6 9l6 6 6-6" />
     </svg>
   );
 }
@@ -306,14 +379,14 @@ export function EntryDetailPage() {
       <Header />
       <div className="mx-auto max-w-2xl px-4 py-8">
         <Link
-          to="/entries"
+          to="/"
           className="flex items-center gap-1.5 mb-6 text-sm font-display font-700 transition-opacity duration-150"
           style={{ color: 'var(--sg-teal)' }}
           onMouseEnter={(e: MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.opacity = '0.7')}
           onMouseLeave={(e: MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.opacity = '1')}
         >
           <ChevronLeft />
-          Back to history
+          Back to home
         </Link>
 
         {isLoading && <p style={{ color: 'var(--sg-text-muted)' }}>Loading entry…</p>}
@@ -360,50 +433,9 @@ export function EntryDetailPage() {
           <DisregardedGuidance message={guidance.motivational.message} />
         ) : (
           <>
-            {isMostRecentEntry &&
-              (entryAssessment ? (
-                <SeverityBanner
-                  score={entryAssessment.severity_level}
-                  sourceLabel={
-                    entryAssessment.source === 'ai' ? 'Accepted AI recommendation' : 'Your own report'
-                  }
-                />
-              ) : pendingSeverityRecommendation.data && entryId ? (
-                <SeverityBanner
-                  score={pendingSeverityRecommendation.data.recommendedSeverity}
-                  sourceLabel="AI-recommended — not yet recorded"
-                >
-                  <div className="mt-3">
-                    <SeverityRecommendationCard
-                      confessionEntryId={entryId}
-                      recommendedSeverity={pendingSeverityRecommendation.data.recommendedSeverity}
-                      onDismiss={pendingSeverityRecommendation.clear}
-                    />
-                  </div>
-                </SeverityBanner>
-              ) : (
-                <SeverityBannerShell>
-                  {guidance.severity.status === 'loading' && (
-                    <p className="text-sm" style={{ color: 'var(--sg-text-muted)' }}>
-                      Assessing severity…
-                    </p>
-                  )}
-                  {guidance.severity.status === 'error' && (
-                    <p className="text-sm" style={{ color: '#d94f4f' }}>
-                      {guidance.severity.error ?? 'Something went wrong.'}
-                    </p>
-                  )}
-                  {guidance.severity.status === 'idle' && (
-                    <p className="text-sm" style={{ color: 'var(--sg-text-muted)' }}>
-                      Severity assessment not generated yet.
-                    </p>
-                  )}
-                </SeverityBannerShell>
-              ))}
-
             <GuidanceCard
               icon={<SparkleIcon color="var(--sg-teal)" />}
-              label="An encouraging word"
+              label="What you need to know"
               accentColor="var(--sg-teal)"
             >
               <GuidanceStatusContent status={motivationalStatus} error={guidance.motivational.error}>
@@ -417,8 +449,9 @@ export function EntryDetailPage() {
 
             <GuidanceCard
               icon={<BookIcon color={READING_PLAN_ACCENT} />}
-              label="Personalized reading plan"
+              label="Personalized Bible devotional"
               accentColor={READING_PLAN_ACCENT}
+              collapsible
             >
               <GuidanceStatusContent status={readingPlanStatus} error={guidance.readingPlan.error}>
                 {effectiveReadingPlan && <ReadingPlanCard plan={effectiveReadingPlan} />}
@@ -469,6 +502,47 @@ export function EntryDetailPage() {
                 )}
               </GuidanceStatusContent>
             </GuidanceCard>
+
+            {isMostRecentEntry &&
+              (entryAssessment ? (
+                <SeverityBanner
+                  score={entryAssessment.severity_level}
+                  sourceLabel={
+                    entryAssessment.source === 'ai' ? 'Accepted AI recommendation' : 'Your own report'
+                  }
+                />
+              ) : pendingSeverityRecommendation.data && entryId ? (
+                <SeverityBanner
+                  score={pendingSeverityRecommendation.data.recommendedSeverity}
+                  sourceLabel="AI-recommended — not yet recorded"
+                >
+                  <div className="mt-3">
+                    <SeverityRecommendationCard
+                      confessionEntryId={entryId}
+                      recommendedSeverity={pendingSeverityRecommendation.data.recommendedSeverity}
+                      onDismiss={pendingSeverityRecommendation.clear}
+                    />
+                  </div>
+                </SeverityBanner>
+              ) : (
+                <SeverityBannerShell>
+                  {guidance.severity.status === 'loading' && (
+                    <p className="text-sm" style={{ color: 'var(--sg-text-muted)' }}>
+                      Assessing severity…
+                    </p>
+                  )}
+                  {guidance.severity.status === 'error' && (
+                    <p className="text-sm" style={{ color: '#d94f4f' }}>
+                      {guidance.severity.error ?? 'Something went wrong.'}
+                    </p>
+                  )}
+                  {guidance.severity.status === 'idle' && (
+                    <p className="text-sm" style={{ color: 'var(--sg-text-muted)' }}>
+                      Severity assessment not generated yet.
+                    </p>
+                  )}
+                </SeverityBannerShell>
+              ))}
           </>
         )}
 

@@ -679,7 +679,7 @@ All shapes use `rx="2"` for slightly soft corners. The graduated opacity creates
 - `entryId` comes from `useParams<{ entryId: string }>()`, entry data from `useConfessionEntry(entryId)`.
 - Back navigation uses `<Link to="/entries">` instead of a `navigate('history')` callback.
 - All AI guidance content and its independent loading/success/error states come from `useEntryGuidanceOrchestrator()` (streaming NDJSON, see [Data Model](#9-data-model)) merged with whatever's already persisted (`useReadingPlanForEntry`, `useGuidanceRecordForEntry`, `useGuidedPrayerForEntry`, `useAssessmentForEntry`) — this is real, incrementally-arriving data, not a single static `entry.aiGuidance` object. **Every `GuidanceCard` must keep reflecting its own `loading`/`success`/`error`/`idle` status independently** — do not collapse this into one all-or-nothing spinner.
-- The reading-plan card renders the existing `ReadingPlanCard` (YouVersion `BibleCard` SDK, versioned `plan_json` v1/v2) wrapped in the `GuidanceCard` chrome below — it is **not** replaced by a plain static numbered list of verse strings.
+- The reading-plan card renders the existing `ReadingPlanCard` (YouVersion `BibleTextView` SDK component, styled with our design tokens, versioned `plan_json` v1/v2) wrapped in the `GuidanceCard` chrome below — it is **not** replaced by a plain static numbered list of verse strings.
 - The severity section renders the existing accept/record flow (`entryAssessment` vs. `SeverityRecommendationCard`) inside the gradient banner styling below.
 
 **Layout structure:**
@@ -694,7 +694,7 @@ All shapes use `rx="2"` for slightly soft corners. The graduated opacity creates
 
 [Severity assessment banner]             gradient bg, score + label (entryAssessment or SeverityRecommendationCard accept flow)
 <GuidanceCard label="An encouraging word">   guidanceRecord.content (motivational)
-<GuidanceCard label="Personalized reading plan">  ReadingPlanCard (YouVersion BibleCard)
+<GuidanceCard label="Personalized reading plan">  ReadingPlanCard (YouVersion BibleTextView, accordion steps)
 <GuidanceCard label="Guided prayer">     guidedPrayer.content, in green-tinted box
 
 [Collapsed "Developer tools" disclosure — existing debug-prompts aid, visually tucked away]
@@ -718,7 +718,7 @@ All shapes use `rx="2"` for slightly soft corners. The graduated opacity creates
 - Right: bold label + source attribution in muted text (recorded `entryAssessment.source` — `'ai'` → "accepted AI recommendation", `'self_report'` → "your own report" — or, if not yet recorded, the in-flight `guidance.severity` recommendation with its accept action)
 
 **Reading plan card:**
-- Keep the existing `ReadingPlanCard`/YouVersion `BibleCard` rendering; wrap it in the `GuidanceCard` chrome (icon, uppercase purple-accented label, `rounded-3xl` container) rather than reverting to a plain numbered verse-string list
+- Keep the existing `ReadingPlanCard`/YouVersion `BibleTextView` rendering (each passage collapsed into an accordion step, styled with `--sg-*` tokens and the purple reading-plan accent); wrap it in the `GuidanceCard` chrome (icon, uppercase purple-accented label, `rounded-3xl` container) rather than reverting to a plain numbered verse-string list
 
 **AI guidance divider:**
 ```tsx
@@ -909,7 +909,7 @@ interface GuidedPrayer {
 }
 ```
 
-`ReadingPlanCard` renders `plan_json` via the YouVersion `BibleCard` SDK component and must tolerate both v1 and v2 shapes — it is not a plain array of verse-reference strings as an earlier draft of this doc suggested.
+`ReadingPlanCard` renders `plan_json` via the YouVersion `BibleTextView` SDK component (customized with our font/color tokens, one passage open at a time) and must tolerate both v1 and v2 shapes — it is not a plain array of verse-reference strings as an earlier draft of this doc suggested.
 
 ### profiles
 
@@ -976,4 +976,4 @@ Once you've confirmed nothing links to them, remove the `/settings`, `/assessmen
 
 ### Extending the reading plan display further
 
-`reading_plans.plan_json` already carries structured passages (v2: `{ number, reference, summary }`). Future iterations could add per-passage completion tracking or link out to a full YouVersion reading-plan experience beyond the single-passage `BibleCard`.
+`reading_plans.plan_json` already carries structured passages (v2: `{ number, reference, summary }`). Future iterations could add per-passage completion tracking or link out to a full YouVersion reading-plan experience beyond the single-passage `BibleTextView`.

@@ -4,7 +4,7 @@
 // buildConfessionContext round-trip.
 //
 // plan_json is versioned. v2 shape:
-//   { version: 2, passages: [{ number, reference, summary }] }
+//   { version: 2, passages: [{ number, reference }] }
 
 import { createSupabaseAdminClient } from '../supabaseAdmin.ts';
 import { callGloo } from '../glooClient.ts';
@@ -16,7 +16,6 @@ type AdminClient = ReturnType<typeof createSupabaseAdminClient>;
 interface ReadingPlanPassage {
   number: number;
   reference: string;
-  summary: string;
 }
 
 interface ReadingPlanResponse {
@@ -63,7 +62,6 @@ export async function runGenerateReadingPlan(
         .map((passage, index) => ({
           number: typeof passage.number === 'number' ? passage.number : index + 1,
           reference: passage.reference.trim(),
-          summary: typeof passage.summary === 'string' ? passage.summary.trim() : '',
         }))
     : [];
 

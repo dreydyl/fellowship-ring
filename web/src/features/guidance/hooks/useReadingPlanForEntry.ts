@@ -7,7 +7,6 @@ import { supabase } from '../../../lib/supabaseClient';
 export interface ReadingPlanPassage {
   number?: number;
   reference: string;
-  summary?: string;
 }
 
 export interface ReadingPlanJson {

@@ -9,7 +9,7 @@
 //     "title": string,
 //     "narrative": string,       // short narrative on their identity in Christ
 //     "passages": [
-//       { "number": number, "reference": string, "summary": string }
+//       { "number": number, "reference": string }
 //     ]
 //   }
 //
@@ -43,12 +43,12 @@ shape:
   "title": string,
   "narrative": string,
   "passages": [
-    { "number": number, "reference": string, "summary": string }
+    { "number": number, "reference": string }
   ]
 }
 Each passage's "reference" must be a precise Bible reference (e.g. "Hebrews 4:16") suitable for a lookup \
-API call. Each "summary" briefly explains how that passage connects to the narrative. Do not include verse \
-text — only references and summaries.`;
+API call. Do not include verse text or a per-passage explanation — only the reference; the narrative \
+alone should tie the passages together.`;
 
   const input = `Their confession just now: "${ctx.entry.content}"
 
