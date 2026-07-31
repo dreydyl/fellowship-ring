@@ -115,7 +115,7 @@ export function HomePage() {
           <ThreeCrosses />
           <h1 className="mt-4 font-display font-900 text-4xl text-white">Solid Ground</h1>
           <p className="mt-2 font-body text-sm text-white" style={{ opacity: 0.85 }}>
-            Gateway to Accountability
+            Start Your Journey of Freedom
           </p>
         </div>
         <div

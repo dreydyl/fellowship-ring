@@ -13,6 +13,26 @@ const GLOO_RESPONSES_URL = 'https://platform.ai.gloo.com/ai/v1/responses';
 const GLOO_COMPLETIONS_URL = 'https://platform.ai.gloo.com/ai/v2/chat/completions';
 const DEFAULT_MODEL = 'gloo-openai-gpt-5-mini';
 
+/**
+ * Thrown when Gloo AI itself is unavailable — the app's own Gloo
+ * account is out of credit/quota (402), being rate-limited (429), or
+ * Gloo is having an outage (5xx). Distinct from other 4xx errors
+ * (bad request, auth misconfiguration), which indicate a bug rather
+ * than "try again later". Callers use this to return a friendly
+ * 503 to the client and refund any rate-limit credit they reserved
+ * for the call, since the user never actually got a result.
+ */
+export class GlooProviderUnavailableError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message);
+    this.name = 'GlooProviderUnavailableError';
+  }
+}
+
+function isProviderUnavailableStatus(status: number): boolean {
+  return status === 402 || status === 429 || status >= 500;
+}
+
 // Access tokens are valid for 1 hour; cache within the function's warm
 // lifetime and refresh a little before actual expiry.
 let cachedToken: { accessToken: string; expiresAt: number } | null = null;
@@ -103,6 +123,12 @@ export async function callGloo({
 
   if (!response.ok) {
     const errorBody = await response.text();
+    if (isProviderUnavailableStatus(response.status)) {
+      throw new GlooProviderUnavailableError(
+        response.status,
+        `Gloo AI is temporarily unavailable (${response.status}): ${errorBody}`,
+      );
+    }
     throw new Error(`Gloo AI API error (${response.status}): ${errorBody}`);
   }
 
@@ -164,6 +190,12 @@ export async function callGlooCompletion({
 
   if (!response.ok) {
     const errorBody = await response.text();
+    if (isProviderUnavailableStatus(response.status)) {
+      throw new GlooProviderUnavailableError(
+        response.status,
+        `Gloo AI is temporarily unavailable (${response.status}): ${errorBody}`,
+      );
+    }
     throw new Error(`Gloo AI Completions API error (${response.status}): ${errorBody}`);
   }
 

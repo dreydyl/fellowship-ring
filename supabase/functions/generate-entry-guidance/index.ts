@@ -35,6 +35,13 @@ import { runGenerateMotivational } from '../_shared/tasks/generateMotivational.t
 import { runGenerateReadingPlan } from '../_shared/tasks/generateReadingPlan.ts';
 import { runGenerateGuidedPrayer } from '../_shared/tasks/generateGuidedPrayer.ts';
 import { DISREGARDED_MESSAGE } from '../_shared/guidanceFallback.ts';
+import { GlooProviderUnavailableError } from '../_shared/glooClient.ts';
+import {
+  RateLimitExceededError,
+  formatRetryMessage,
+  releaseAiCredit,
+  reserveAiCredit,
+} from '../_shared/rateLimiter.ts';
 
 type GuidanceTarget = 'desperation' | 'readingPlan' | 'motivational' | 'severity' | 'guidedPrayer';
 
@@ -73,10 +80,26 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  const supabase = createSupabaseAdminClient();
+
+  let eventId: string;
+  try {
+    ({ eventId } = await reserveAiCredit(supabase, userId, 'generate-entry-guidance'));
+  } catch (error) {
+    if (error instanceof RateLimitExceededError) {
+      return new Response(JSON.stringify({ error: formatRetryMessage(error.retryAfterMs) }), {
+        status: 429,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    throw error;
+  }
+
   let ctx;
   try {
     ctx = await buildConfessionContext(userId, confessionEntryId);
   } catch (error) {
+    await releaseAiCredit(supabase, eventId);
     const status = errorMessage(error) === 'Confession entry not found' ? 404 : 500;
     return new Response(JSON.stringify({ error: errorMessage(error) }), {
       status,
@@ -84,7 +107,6 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const supabase = createSupabaseAdminClient();
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream<Uint8Array>({
@@ -103,10 +125,20 @@ Deno.serve(async (req: Request) => {
         desperationLevel = await runAssessDesperation(ctx);
         emit('desperation', { status: 'success', data: { desperationLevel } });
       } catch (error) {
-        emit('desperation', { status: 'error', error: errorMessage(error) });
-        DOWNSTREAM_TARGETS.forEach((target) =>
-          emit(target, { status: 'error', error: 'Skipped — could not assess this entry.' }),
-        );
+        if (error instanceof GlooProviderUnavailableError) {
+          await releaseAiCredit(supabase, eventId);
+          const unavailableMessage =
+            'Our AI guidance service is temporarily unavailable. Please try again shortly.';
+          emit('desperation', { status: 'error', error: unavailableMessage });
+          DOWNSTREAM_TARGETS.forEach((target) =>
+            emit(target, { status: 'error', error: unavailableMessage }),
+          );
+        } else {
+          emit('desperation', { status: 'error', error: errorMessage(error) });
+          DOWNSTREAM_TARGETS.forEach((target) =>
+            emit(target, { status: 'error', error: 'Skipped — could not assess this entry.' }),
+          );
+        }
         controller.close();
         return;
       }

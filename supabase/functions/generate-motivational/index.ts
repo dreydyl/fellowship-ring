@@ -18,6 +18,13 @@
 import { createSupabaseAdminClient, getUserIdFromRequest } from '../_shared/supabaseAdmin.ts';
 import { buildConfessionContext } from '../_shared/confessionContext.ts';
 import { runGenerateMotivational } from '../_shared/tasks/generateMotivational.ts';
+import { GlooProviderUnavailableError } from '../_shared/glooClient.ts';
+import {
+  RateLimitExceededError,
+  formatRetryMessage,
+  releaseAiCredit,
+  reserveAiCredit,
+} from '../_shared/rateLimiter.ts';
 
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
@@ -35,6 +42,21 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    const supabase = createSupabaseAdminClient();
+
+    let eventId: string;
+    try {
+      ({ eventId } = await reserveAiCredit(supabase, userId, 'generate-motivational'));
+    } catch (error) {
+      if (error instanceof RateLimitExceededError) {
+        return new Response(JSON.stringify({ error: formatRetryMessage(error.retryAfterMs) }), {
+          status: 429,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      throw error;
+    }
+
     let ctx;
     try {
       ctx = await buildConfessionContext(userId, confessionEntryId);
@@ -48,8 +70,21 @@ Deno.serve(async (req: Request) => {
       throw error;
     }
 
-    const supabase = createSupabaseAdminClient();
-    const guidanceRecord = await runGenerateMotivational(supabase, userId, confessionEntryId, ctx);
+    let guidanceRecord;
+    try {
+      guidanceRecord = await runGenerateMotivational(supabase, userId, confessionEntryId, ctx);
+    } catch (error) {
+      if (error instanceof GlooProviderUnavailableError) {
+        await releaseAiCredit(supabase, eventId);
+        return new Response(
+          JSON.stringify({
+            error: 'Our AI guidance service is temporarily unavailable. Please try again shortly.',
+          }),
+          { status: 503, headers: { 'content-type': 'application/json' } },
+        );
+      }
+      throw error;
+    }
 
     return new Response(JSON.stringify(guidanceRecord), {
       status: 200,
