@@ -13,7 +13,7 @@ import type { createSupabaseAdminClient } from './supabaseAdmin.ts';
 
 type AdminClient = ReturnType<typeof createSupabaseAdminClient>;
 
-export const AI_CREDIT_LIMIT = 3;
+export const AI_CREDIT_LIMIT = 12;
 export const AI_CREDIT_WINDOW_HOURS = 24;
 
 export class RateLimitExceededError extends Error {

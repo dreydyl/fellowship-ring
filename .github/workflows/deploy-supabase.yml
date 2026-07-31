@@ -1,0 +1,69 @@
+name: Deploy Supabase
+
+# Pushes DB migrations, edge function secrets, and edge functions to the
+# linked Supabase project on every push to master (or manually via
+# workflow_dispatch).
+#
+# Requires these repo secrets (Settings -> Secrets and variables -> Actions):
+#   SUPABASE_ACCESS_TOKEN  - personal access token (Dashboard > Account > Access Tokens)
+#   SUPABASE_PROJECT_REF   - the target project's ref
+#   SUPABASE_DB_PASSWORD   - the target project's database password
+#   GLOO_CLIENT_ID / GLOO_CLIENT_SECRET
+#   YOUVERSION_API_URL / YOUVERSION_API_KEY
+#
+# debug-prompts and scratch-gloo-test are dev-only utilities and are
+# intentionally excluded from the deploy list below.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    name: Deploy migrations, secrets & edge functions
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: supabase
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link Supabase project
+        env:
+          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase link --project-ref "$PROJECT_REF" --password "$DB_PASSWORD"
+
+      - name: Push database migrations
+        env:
+          DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase db push --password "$DB_PASSWORD"
+
+      - name: Set edge function secrets
+        env:
+          GLOO_CLIENT_ID: ${{ secrets.GLOO_CLIENT_ID }}
+          GLOO_CLIENT_SECRET: ${{ secrets.GLOO_CLIENT_SECRET }}
+          YOUVERSION_API_URL: ${{ secrets.YOUVERSION_API_URL }}
+          YOUVERSION_API_KEY: ${{ secrets.YOUVERSION_API_KEY }}
+        run: |
+          supabase secrets set \
+            GLOO_CLIENT_ID="$GLOO_CLIENT_ID" \
+            GLOO_CLIENT_SECRET="$GLOO_CLIENT_SECRET" \
+            YOUVERSION_API_URL="$YOUVERSION_API_URL" \
+            YOUVERSION_API_KEY="$YOUVERSION_API_KEY"
+
+      - name: Deploy edge functions
+        run: |
+          for fn in assess-desperation generate-entry-guidance generate-guided-prayer generate-motivational generate-reading-plan recommend-severity youversion-passage; do
+            supabase functions deploy "$fn"
+          done
