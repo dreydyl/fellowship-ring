@@ -21,6 +21,63 @@ const entrySchema = z.object({
 type EntryFormValues = z.infer<typeof entrySchema>;
 
 const urgeLabels = ['', 'Minimal', 'Mild', 'Moderate', 'Significant', 'Severe'];
+// How much of the track (in %) is filled for each level.
+const urgeFillPct = [0, 20, 40, 60, 80, 100];
+
+// Sub-ranges (in %) of the teal→yellow→red master scale used to color each
+// level's fill. These don't need to line up with urgeFillPct — whatever
+// colors they resolve to are stretched to fill the whole 0-urgeFillPct width.
+const urgeFillBackgroundRanges: number[][] = [
+  [],
+  [0, 15],
+  [15, 40],
+  [40, 50, 60],
+  [60, 85],
+  [85, 100],
+];
+
+// Master gradient anchors: 0% teal, 50% yellow, 100% red — mirrors the
+// severity color scale (see utils/severityColors.ts).
+const MASTER_GRADIENT_STOPS: Array<[number, string]> = [
+  [0, '#2bbfb0'],
+  [50, '#f5c518'],
+  [100, '#d94f4f'],
+];
+
+function hexToRgb(hex: string) {
+  const n = parseInt(hex.slice(1), 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function mixHex(a: string, b: string, t: number): string {
+  const ca = hexToRgb(a);
+  const cb = hexToRgb(b);
+  const r = Math.round(ca.r + (cb.r - ca.r) * t);
+  const g = Math.round(ca.g + (cb.g - ca.g) * t);
+  const bl = Math.round(ca.b + (cb.b - ca.b) * t);
+  return `rgb(${r}, ${g}, ${bl})`;
+}
+
+// Interpolates a color along the teal→yellow→red master scale at `pct`.
+function colorAt(pct: number): string {
+  const clamped = Math.min(100, Math.max(0, pct));
+  for (let i = 0; i < MASTER_GRADIENT_STOPS.length - 1; i++) {
+    const [p0, c0] = MASTER_GRADIENT_STOPS[i];
+    const [p1, c1] = MASTER_GRADIENT_STOPS[i + 1];
+    if (clamped <= p1) {
+      return mixHex(c0, c1, (clamped - p0) / (p1 - p0));
+    }
+  }
+  return MASTER_GRADIENT_STOPS[MASTER_GRADIENT_STOPS.length - 1][1];
+}
+
+// Builds the fill's own background-image: its stops are just evenly spaced
+// left-to-right, since background-size stretches it across 0-urgeFillPct.
+function urgeFillBackground(level: number): string {
+  const points = urgeFillBackgroundRanges[level] ?? [];
+  if (points.length === 0) return 'none';
+  return `linear-gradient(to right, ${points.map(colorAt).join(', ')})`;
+}
 
 // The slider itself moves continuously (no snapping) between 0 and 5.
 // The value that gets submitted and shown to the user is the ceiling of
@@ -115,7 +172,7 @@ export function HomePage() {
           <ThreeCrosses />
           <h1 className="mt-4 font-display font-900 text-4xl text-white">Solid Ground</h1>
           <p className="mt-2 font-body text-sm text-white" style={{ opacity: 0.85 }}>
-            Start Your Journey of Freedom
+            Lay the foundations of freedom.
           </p>
         </div>
         <div
@@ -180,7 +237,10 @@ export function HomePage() {
               max={5}
               step="any"
               className="mt-2 block w-full"
-              style={{ ['--range-pct' as string]: `${((urgeIntensity - 1) / 4) * 100}%` }}
+              style={{
+                ['--range-pct' as string]: `${urgeFillPct[urgeIntensity]}%`,
+                ['--fill-gradient' as string]: urgeFillBackground(urgeIntensity),
+              }}
               {...register('urgeIntensitySlider', { valueAsNumber: true })}
             />
           </div>

@@ -18,8 +18,9 @@ import {
   releaseAiCredit,
   reserveAiCredit,
 } from '../_shared/rateLimiter.ts';
+import { withCors } from '../_shared/cors.ts';
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withCors(async (req: Request) => {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
   }
@@ -108,4 +109,4 @@ Deno.serve(async (req: Request) => {
       headers: { 'content-type': 'application/json' },
     });
   }
-});
+}));

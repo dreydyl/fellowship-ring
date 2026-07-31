@@ -12,6 +12,7 @@
 // user via the Supabase anon client.
 
 import { getUserIdFromRequest } from '../_shared/supabaseAdmin.ts';
+import { withCors } from '../_shared/cors.ts';
 
 function buildUrl(reference: string): string {
   const baseUrl = Deno.env.get('YOUVERSION_API_URL');
@@ -82,7 +83,7 @@ function extractText(payload: unknown): string {
   throw new Error('Unsupported YouVersion response shape');
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withCors(async (req: Request) => {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
   }
@@ -139,4 +140,4 @@ Deno.serve(async (req: Request) => {
       headers: { 'content-type': 'application/json' },
     });
   }
-});
+}));

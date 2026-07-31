@@ -42,6 +42,7 @@ import {
   releaseAiCredit,
   reserveAiCredit,
 } from '../_shared/rateLimiter.ts';
+import { withCors } from '../_shared/cors.ts';
 
 type GuidanceTarget = 'desperation' | 'readingPlan' | 'motivational' | 'severity' | 'guidedPrayer';
 
@@ -56,7 +57,7 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown error';
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(withCors(async (req: Request) => {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
   }
@@ -210,4 +211,4 @@ Deno.serve(async (req: Request) => {
     status: 200,
     headers: { 'content-type': 'application/x-ndjson' },
   });
-});
+}));
